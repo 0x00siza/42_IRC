@@ -7,7 +7,64 @@
 #include <unistd.h>
 #include <cerrno>
 #include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <map>
+#include <vector>
+#include <poll.h>
+#include <exception>
+#include <cstring>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+using namespace std;
+class Client;
 
 class Server {
-    
-};
+    private:
+        int _port;
+        string _serverPassword;
+        int _listeningSocketFd;
+        vector<struct pollfd> _pollFds;
+        map<int, Client*> _clients;
+
+    public:
+        Server(int port, string& password):_port(port), _serverPassword(password),
+        _listeningSocketFd(-1){
+
+        }
+        // cpy construcor ...
+
+        // getters / setters
+        int getPort() const { return _port; }
+        void setPort(int p) { _port = p; }
+        
+        const string& getPassword() const { return _serverPassword; }
+        void setPassword(const string& pw) { _serverPassword = pw; }
+
+        int getListeningSocketFd() const { return _listeningSocketFd; }
+        void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
+
+        void addClient(int fd, Client* client);
+        void removeClient(int fd);
+        bool authClient(string &clientPassword);
+        void serverStart();
+
+        // exceptions 
+        class ServerError : public std::runtime_error {
+        public:
+            ServerError(const std::string& msg) : std::runtime_error(msg) {}
+        };
+
+        class SocketError : public ServerError {
+        public:
+            SocketError(const std::string& msg) : ServerError("Socket error: " + msg) {}
+        };
+
+        class NetworkError : public ServerError {
+        public:
+            NetworkError(const std::string& msg)
+                : ServerError("Network error: " + msg + " (" + std::strerror(errno) + ")") {}
+        };
+
+    };

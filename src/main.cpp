@@ -1,98 +1,66 @@
-// #include "Server.hpp"
+#include "Server.hpp"
 
-// int main(){
-//     std::cout << "server is about to go brrr" << std::endl;
-
-//     //  socket() -> asks the kernel to create a socket object
-//      // domain: AF_INET  (IPv4)
-//     // type:   SOCK_STREAM (TCP - reliable stream)
-//     // protocol: 0 -> kernel picks TCP for SOCK_STREAM
-
-//     int fd = socket(AF_INET, SOCK_STREAM, 0);
-//     if (fd < 0){
-//         std::perror("socket");
-//         return 1;
-//     }
-
-//     std::cout << fd << std::endl;
-
-//     close(fd);
-
-// }
-
-// ...existing code...
-#include <cstring>
-#include <cstdio>
-#include <iostream>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-
-using namespace std;
-
-int main()
+int main(int ac, char**av)
 {
-    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket < 0) {
-        perror("socket");
-        return 1;
+    
+    if (ac != 3){
+        cerr << "Usage: " << av[0] << " <port> <password>" << endl;
+        return EXIT_FAILURE;
     }
 
-    int opt = 1;
-    if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        perror("setsockopt");
-        close(serverSocket);
-        return 1;
+    const char* s = av[1];
+    char* end = NULL;
+    errno = 0;
+    long x = strtol(s, &end, 10);
+    
+    if (end == s){
+        cerr << "Port is not a number: " << s << endl;
+        return EXIT_FAILURE;
+    }
+    
+     if (end == s) {
+        std::cerr << "Port is not a number: " << s << std::endl;
+        return EXIT_FAILURE;
+    }
+    if (*end != '\0') {
+        std::cerr << "Trailing non-numeric characters after number: " << end << std::endl;
+        return EXIT_FAILURE;
     }
 
-    sockaddr_in serverAddress;
-    memset(&serverAddress, 0, sizeof(serverAddress));
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(8080);
-    serverAddress.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-        perror("bind");
-        close(serverSocket);
-        return 1;
+    // check overflow or underflow + port range
+    if (errno == ERANGE || x < 0 || x > 65535) {
+        std::cerr << "Port out of range: " << s << std::endl;
+        return EXIT_FAILURE;
     }
 
-    if (listen(serverSocket, 5) < 0) {
-        perror("listen");
-        close(serverSocket);
-        return 1;
+
+    int port = static_cast<int>(x);
+    cout << "port: " << port << endl;
+    
+    string serverPassword(av[2]);
+    if (serverPassword.empty()){
+        std::cerr << "Password cannot be empty\n";
+        return EXIT_FAILURE;
     }
+    // should I put limit to the password length ? :c
 
-    cout << "listening on 0.0.0.0:8080" << endl;
-
-    sockaddr_in clientAddr;
-    socklen_t clientLen = sizeof(clientAddr);
-    int clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientLen);
-    if (clientSocket < 0) {
-        perror("accept");
-        close(serverSocket);
-        return 1;
+    Server server(port, serverPassword);
+    
+    try {
+        server.serverStart();
+    } catch (const Server::ServerError& e) {
+        std::cerr << "Fatal Server Error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    } catch (const std::bad_alloc& e) { // Catch out-of-memory specifically
+        std::cerr << "Out of memory: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    } catch (const std::exception& e) { // Catch any other standard exceptions
+        std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    } catch (...) { // Catch any other unknown exceptions
+        std::cerr << "An unknown fatal error occurred." << std::endl;
+        return EXIT_FAILURE;
     }
-
-    cout << "accepted connection from " << inet_ntoa(clientAddr.sin_addr)
-         << ":" << ntohs(clientAddr.sin_port) << endl;
-
-    char buffer[1024];
-    ssize_t n;
-    while ((n = recv(clientSocket, buffer, sizeof(buffer) - 1, 0)) > 0) {
-        buffer[n] = '\0';
-        cout << "Message from client: " << buffer;
-        if (buffer[n-1] != '\n') cout << endl;
-    }
-    if (n == 0) {
-        cout << "client closed connection" << endl;
-    } else if (n < 0) {
-        perror("recv");
-    }
-
-    close(clientSocket);
-    close(serverSocket);
-    return 0;
+    
+    return EXIT_SUCCESS;
 }
-// ...existing code...
