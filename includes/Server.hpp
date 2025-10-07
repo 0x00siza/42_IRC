@@ -16,6 +16,7 @@
 #include <cstring>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 
 using namespace std;
 class Client;
