@@ -5,6 +5,7 @@
 void Server::serverStart(){
     std::cout << "server is about to go brrr" << std::endl;
       
+    // setting up your listening socket
     // create a socket :DD
     setListeningSocketFd(socket(AF_INET, SOCK_STREAM, 0));
     if (_listeningSocketFd < 0){
@@ -43,7 +44,10 @@ void Server::serverStart(){
         throw SocketError("Failed to start listening on socket");
     }
 
+    // btw network sockets are also treated as file descriptors 
     // Set File Descriptor Flags for socket (e.g., Non-Blocking Mode)
+    // Non-Blocking Mode -> make the server able to handle multiple clients
+        // without hanging and waiting to send/recieve data for one clinet
     if (fcntl(_listeningSocketFd, F_SETFL, O_NONBLOCK)){
         close(_listeningSocketFd);
         throw SocketError("Failed to start listening on socket");
