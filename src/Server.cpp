@@ -3,7 +3,7 @@
 
 
 void Server::serverStart(){
-    std::cout << "server is about to go brrr" << std::endl;
+    // cout << "server is about to go brrr" << endl;
       
     // setting up your listening socket
     // create a socket :DD
@@ -53,12 +53,54 @@ void Server::serverStart(){
         throw SocketError("Failed to start listening on socket");
     }
     
-    std::cout << "listening on 0.0.0.0:" << _port << " (fd=" << getListeningSocketFd() << ")\n";
     // cant connect to privelieged ports btw so use port >= 1024
     
+    // check where to add the next part 
+    // setting up a structure to hold file descriptors for poll()
+    struct pollfd listeningPollfd;
+    listeningPollfd.fd = _listeningSocketFd; // file descriptor to watch
+    listeningPollfd.events = POLLIN;         // Watch for incoming data (new clients) -> set the event to POLLIN for reading data
+    listeningPollfd.revents = 0;             // revents is set by poll() to indicate actual events
+    _pollFds.push_back(listeningPollfd);
+
+    cout << "listening on 0.0.0.0:" << _port << " (fd=" << getListeningSocketFd() << ")\n";
+    serverRun();
 }
 
-// close fds when finished !!!
+void Server::serverRun(){
+
+    // wait for connections
+    cout << "waiting for connections..." << endl;
+
+    int fds_count = poll(&_pollFds[0], _pollFds.size(), -1);
+    while (true){
+        if (fds_count == -1){
+            // clean up fds and clients ...
+            throw ServerError("Poll failed!");
+        }
+        else if (fds_count == 0){ 
+            // // clean up fds and clients ...
+            // throw ServerError("Poll timed out!");
+            // quit or continue idk :c
+            continue;
+        }
+        else { // event occured
+
+            for (int i = 0; i < _pollFds.size(); i++){
+                if (_pollFds[i].revents && POLLIN){ // check if there is any data to read
+                    if (_pollFds[i].fd == _listeningSocketFd) // new socket detected and want to get accepted
+                        addNewClient();
+                    else     // socket that has already successfully connected to your server
+                        recieveData();
+                } 
+            }
+
+        }
+
+    }
+}
+
+// while on fds and close them when finished !!!
 
 bool Server::authClient(string &clientPassword){
             return clientPassword == _serverPassword;

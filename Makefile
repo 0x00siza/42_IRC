@@ -12,6 +12,7 @@ OBJ = $(SRC:.cpp=.o)
 
 # Colors
 PURPLE = \033[0;35m
+GREEN = \033[0;32m
 NC = \033[0m # No Color
 
 all: $(NAME)

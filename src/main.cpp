@@ -47,7 +47,10 @@ int main(int ac, char**av)
     Server server(port, serverPassword);
     
     try {
+        // set up server
         server.serverStart();
+
+        // start loop waiting for connections
     } catch (const Server::ServerError& e) {
         std::cerr << "Fatal Server Error: " << e.what() << std::endl;
         return EXIT_FAILURE;

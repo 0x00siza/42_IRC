@@ -25,9 +25,9 @@ class Server {
     private:
         int _port;
         string _serverPassword;
-        int _listeningSocketFd;
-        vector<struct pollfd> _pollFds;
-        map<int, Client*> _clients;
+        int _listeningSocketFd; // server listening socket
+        vector<struct pollfd> _pollFds; // vector of file descriptors
+        map<int, Client*> _clients; // vector of clients
 
     public:
         Server(int port, string& password):_port(port), _serverPassword(password),
@@ -46,26 +46,31 @@ class Server {
         int getListeningSocketFd() const { return _listeningSocketFd; }
         void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
 
-        void addClient(int fd, Client* client);
-        void removeClient(int fd);
-        bool authClient(string &clientPassword);
-        void serverStart();
-
+        
         // exceptions 
         class ServerError : public std::runtime_error {
-        public:
+            public:
             ServerError(const std::string& msg) : std::runtime_error(msg) {}
         };
-
+        
         class SocketError : public ServerError {
-        public:
+            public:
             SocketError(const std::string& msg) : ServerError("Socket error: " + msg) {}
         };
-
+        
         class NetworkError : public ServerError {
-        public:
+            public:
             NetworkError(const std::string& msg)
-                : ServerError("Network error: " + msg + " (" + std::strerror(errno) + ")") {}
+            : ServerError("Network error: " + msg + " (" + std::strerror(errno) + ")") {}
         };
-
+       
+        // functions
+        void serverStart();
+        void serverRun();
+        void addNewClient();
+        void recieveData();
+        void removeClient(int fd);
+        bool authClient(string &clientPassword);
+        void closeFds();
+        void clearClients();
     };
