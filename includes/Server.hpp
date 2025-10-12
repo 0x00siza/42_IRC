@@ -17,9 +17,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include "Client.hpp"
 
 using namespace std;
-class Client;
+
 
 class Server {
     private:
@@ -68,9 +69,9 @@ class Server {
         void serverStart();
         void serverRun();
         void addNewClient();
-        void recieveData();
-        void removeClient(int fd);
         bool authClient(string &clientPassword);
         void closeFds();
+        void recieveData();
+        void removeClient(int fd);
         void clearClients();
     };

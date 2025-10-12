@@ -49,19 +49,23 @@ int main(int ac, char**av)
     try {
         // set up server
         server.serverStart();
-
+        // server.closeFds();
         // start loop waiting for connections
     } catch (const Server::ServerError& e) {
         std::cerr << "Fatal Server Error: " << e.what() << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
     } catch (const std::bad_alloc& e) { // Catch out-of-memory specifically
         std::cerr << "Out of memory: " << e.what() << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
     } catch (const std::exception& e) { // Catch any other standard exceptions
         std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
     } catch (...) { // Catch any other unknown exceptions
         std::cerr << "An unknown fatal error occurred." << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
     }
     

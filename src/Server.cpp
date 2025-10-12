@@ -53,9 +53,8 @@ void Server::serverStart(){
         throw SocketError("Failed to start listening on socket");
     }
     
-    // cant connect to privelieged ports btw so use port >= 1024
+    // note: cant connect to privelieged ports btw so use port >= 1024
     
-    // check where to add the next part 
     // setting up a structure to hold file descriptors for poll()
     struct pollfd listeningPollfd;
     listeningPollfd.fd = _listeningSocketFd; // file descriptor to watch
@@ -72,26 +71,27 @@ void Server::serverRun(){
     // wait for connections
     cout << "waiting for connections..." << endl;
 
-    int fds_count = poll(&_pollFds[0], _pollFds.size(), -1);
+    int fds_count = poll(&_pollFds[0], _pollFds.size(), -1); // waits for file descriptors to become ready to perform I/O
+    
     while (true){
-        if (fds_count == -1){
+
+        if (fds_count == -1){ // Error
             // clean up fds and clients ...
             throw ServerError("Poll failed!");
         }
         else if (fds_count == 0){ 
-            // // clean up fds and clients ...
-            // throw ServerError("Poll timed out!");
-            // quit or continue idk :c
+            // no event occured here just continue  
             continue;
         }
         else { // event occured
 
-            for (int i = 0; i < _pollFds.size(); i++){
-                if (_pollFds[i].revents && POLLIN){ // check if there is any data to read
-                    if (_pollFds[i].fd == _listeningSocketFd) // new socket detected and want to get accepted
-                        addNewClient();
-                    else     // socket that has already successfully connected to your server
-                        recieveData();
+            for (int i = 0; static_cast<long unsigned int>(i) < _pollFds.size(); i++){
+                if (_pollFds[i].revents & POLLIN){ // check if there is any data to read or a new pending connection
+                    if (_pollFds[i].fd == _listeningSocketFd) // new incoming connections detected
+                        addNewClient(); // accept all pending connections
+                    else     // It's an already connected client socket
+                        // recieveData();
+                        cout << "client is already connected - trying to recieve/send data\n";
                 } 
             }
 
@@ -100,8 +100,84 @@ void Server::serverRun(){
     }
 }
 
-// while on fds and close them when finished !!!
+// accept all pending connections (non-blocking accept loop)
+void Server::addNewClient(){
+
+   struct sockaddr_in clientAdd;
+   socklen_t clientLen = sizeof(clientAdd);
+
+   while (true){
+    int clientFd = accept(_listeningSocketFd, (struct sockaddr*) &clientAdd, &clientLen);
+    if (clientFd < 0){
+        if (errno == EAGAIN || errno == EWOULDBLOCK) break; // no more pending
+        std::perror("accept"); // or throw exception ?
+        break;
+    }
+
+    // set to non-blocking socket
+    int flags = fcntl(clientFd, F_GETFL, 0);
+    if (flags != -1){
+        fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+    } 
+
+    // set close-on-exec
+    int fdFlags = fcntl(clientFd, F_GETFD);
+    if (fdFlags != -1) fcntl(clientFd, F_SETFD, fdFlags | FD_CLOEXEC);
+    
+
+    Client *newClient = new Client(clientFd);
+
+    newClient->setHostname(inet_ntoa(clientAdd.sin_addr));
+    
+    
+    
+    // insert new client to map and check for errors
+    // or use simply ->  _clients[clientFd] = newClient;
+    std::pair<std::map<int,Client*>::iterator,bool> res = _clients.insert(std::make_pair(clientFd, newClient));
+    if (!res.second){
+        delete newClient; // leak
+        throw runtime_error("Client already exists!");
+    }
+
+    struct pollfd pollFd;
+    pollFd.fd = clientFd;
+    pollFd.events = POLLIN;        
+    pollFd.revents = 0;
+    _pollFds.push_back(pollFd);
+
+    cout << "accepted " << newClient->getHostname() << ":" << ntohs(clientAdd.sin_port)
+             << " (fd=" << clientFd << ")\n";
+
+    cout << "==============================\n";
+    std::cout << "addNewClient: clientFd=" << clientFd
+              << " clients=" << _clients.size()
+              << " pollfds=" << _pollFds.size() << std::endl;
+    // prepare for next accept
+    clientLen = sizeof(clientAdd);
+
+    }
+}
 
 bool Server::authClient(string &clientPassword){
             return clientPassword == _serverPassword;
+}
+
+void Server::closeFds() {
+    // close clients
+    for (std::map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        int fd = it->first;
+        shutdown(fd, SHUT_RDWR);
+        close(fd);
+        delete it->second;
+    }
+    _clients.clear();
+
+    // clear poll fds
+    _pollFds.clear();
+
+    // close listening socket
+    if (_listeningSocketFd >= 0) {
+        close(_listeningSocketFd);
+        _listeningSocketFd = -1;
+    }
 }
