@@ -52,6 +52,6 @@ class Client {
         // exceptions 
         class clientError : public std::runtime_error {
             public:
-            clientError(const std::string& msg) : std::runtime_error(msg) {}
+                clientError(const std::string& msg) : std::runtime_error(msg) {}
         };
 };

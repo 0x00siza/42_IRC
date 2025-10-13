@@ -47,7 +47,10 @@ class Server {
         int getListeningSocketFd() const { return _listeningSocketFd; }
         void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
 
+        std::vector<struct pollfd>& getPollFds() { return _pollFds; }
+
         
+
         // exceptions 
         class ServerError : public std::runtime_error {
             public:

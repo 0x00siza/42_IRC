@@ -49,8 +49,12 @@ int main(int ac, char**av)
     try {
         // set up server
         server.serverStart();
-        // server.closeFds();
-        // start loop waiting for connections
+        cout << "something \n" << endl;
+        server.closeFds();
+        std::cout << "listening fd = " << server.getListeningSocketFd() << "\n";
+        std::cout << "pollfds = " << server.getPollFds().size() << "\n";
+
+        // check if all fds are closed 
     } catch (const Server::ServerError& e) {
         std::cerr << "Fatal Server Error: " << e.what() << std::endl;
         // server.closeFds();
