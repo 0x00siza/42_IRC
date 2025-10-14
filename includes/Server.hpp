@@ -75,7 +75,7 @@ class Server {
         void addNewClient();
         bool authClient(string &clientPassword);
         void closeFds();
-        void recieveData();
+        void recieveData(int fd);
         void removeClient(int fd);
         void clearClients();
         static void SignalHandler(int signum);

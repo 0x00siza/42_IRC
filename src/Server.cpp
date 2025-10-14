@@ -106,9 +106,10 @@ void Server::serverRun(){
                     
                     else{       // It's an already connected client socket
                         cout << "client is already registered - trying to recieve/send data\n";
-                        recieveData();
+                        recieveData(_pollFds[i].fd);
                     }    
-                } 
+                }
+                // handle client disconnections  
             }
 
         }
@@ -156,17 +157,19 @@ void Server::addNewClient(){
     }
     
 
-    // Client *newClient = new Client(clientFd); leak
+    Client *newClient = new Client(clientFd);
 
-    Client tempClient(clientFd);
-    tempClient.setHostname(inet_ntoa(clientAdd.sin_addr));
+    // Client tempClient(clientFd);
+   newClient->setHostname(inet_ntoa(clientAdd.sin_addr)); // set client's Ip Address
     
     // insert new client to map and check for errors
     // or use simply ->  _clients[clientFd] = newClient;
     
-    std::pair<std::map<int,Client*>::iterator,bool> res = _clients.insert(std::make_pair(clientFd, &tempClient));
+    std::pair<std::map<int,Client*>::iterator,bool> res = _clients.insert(std::make_pair(clientFd, newClient));
     if (!res.second){
-        throw runtime_error("Client already exists!");
+        // throw runtime_error("Client already exists!");
+        cout << "Client is registered!" << endl;
+        return;
     }
 
     struct pollfd pollFd;
@@ -175,16 +178,16 @@ void Server::addNewClient(){
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
 
-    cout << "accepted " << tempClient.getHostname() << ":" << ntohs(clientAdd.sin_port)
+    cout << "accepted " <<newClient->getHostname() << ":" << ntohs(clientAdd.sin_port)
              << " (fd=" << clientFd << ")\n";
 
     cout << "==============================\n";
     std::cout << "addNewClient: clientFd=" << clientFd
               << " clients=" << _clients.size()
               << " pollfds=" << _pollFds.size() << std::endl;
-    // prepare for next accept
+    
+              // prepare for next accept
     clientLen = sizeof(clientAdd);
-
     }
 }
 
@@ -198,7 +201,7 @@ void Server::closeFds() {
         int fd = it->first;
         shutdown(fd, SHUT_RDWR);
         close(fd);
-        // delete it->second; // commented bc i store client by values now :D
+        delete it->second; // commented bc i store client by values now :D
     }
     _clients.clear();
 
@@ -213,6 +216,32 @@ void Server::closeFds() {
 }
 
 
-void Server::recieveData(){
+void Server::recieveData(int fd){
+    char buffer[1024];
+
+    memset(buffer, 0, sizeof(buffer)); 
+    ssize_t bytesRecieved = recv(fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytesRecieved == 0){
+        // clear client
+        cout << "Client disconnected on fd= " << fd << endl;
+        close(fd);
+        // clear the fd for list of client and pollfds
+        // fds.erase(fds.begin() + i);
+        // --i; // Decrement i because we just removed an element
+
+    }
+    else if (bytesRecieved == -1){
+        if (errno != EWOULDBLOCK && errno != EAGAIN) {
+            perror("recv() failed");
+            close(fd);
+            // fds.erase(fds.begin() + i);
+            // --i;
+        }
+    }
+    else{
+        buffer[bytesRecieved] = '\0';
+        cout << "Received data from fd=" << fd << "that is==== " << buffer << endl;
+        // parse data ...
+    }
 
 }
