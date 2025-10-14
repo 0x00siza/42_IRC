@@ -2,6 +2,15 @@
 #include "../includes/Server.hpp"
 
 
+bool Server::signal = false;
+
+void Server::SignalHandler(int signum)
+{
+	(void)signum;
+	std::cout << std::endl << "Signal Received!" << std::endl;
+	Server::signal = true;
+}
+
 void Server::serverStart(){
     // cout << "server is about to go brrr" << endl;
       
@@ -68,15 +77,20 @@ void Server::serverStart(){
 
 void Server::serverRun(){
 
-    // wait for connections
     cout << "waiting for connections..." << endl;
 
-    int fds_count = poll(&_pollFds[0], _pollFds.size(), -1); // waits for file descriptors to become ready to perform I/O
     
-    while (true){
+    while (signal == false){
+        
+        int fds_count = poll(&_pollFds[0], _pollFds.size(), -1); // waits for file descriptors to become ready to perform I/O
+        if (fds_count == -1){ 
 
-        if (fds_count == -1){ // Error
+            if (errno == EINTR) {
+                // Poll was interrupted by a signal. Loop again to check signals.
+                continue; 
+            }
             // clean up fds and clients ...
+            // closeFds();
             throw ServerError("Poll failed!");
         }
         else if (fds_count == 0){ 
@@ -85,7 +99,7 @@ void Server::serverRun(){
         }
         else { // event occured
 
-            for (int i = 0; static_cast<long unsigned int>(i) < _pollFds.size(); i++){
+            for (size_t i = 0; i < _pollFds.size(); i++){
                 if (_pollFds[i].revents & POLLIN){ // check if there is any data to read or a new pending connection
                     if (_pollFds[i].fd == _listeningSocketFd) // new incoming connections detected
                         addNewClient(); // accept all pending connections
@@ -98,7 +112,8 @@ void Server::serverRun(){
         }
 
     }
-
+    cout << "after quitting\n";
+    closeFds();
 }
 
 // accept all pending connections (non-blocking accept loop)

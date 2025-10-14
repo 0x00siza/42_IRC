@@ -17,6 +17,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <csignal>
 #include "Client.hpp"
 
 using namespace std;
@@ -29,7 +30,7 @@ class Server {
         int _listeningSocketFd; // server listening socket
         vector<struct pollfd> _pollFds; // vector of file descriptors
         map<int, Client*> _clients; // vector of clients
-
+        static bool signal;
     public:
         Server(int port, string& password):_port(port), _serverPassword(password),
         _listeningSocketFd(-1){
@@ -77,4 +78,5 @@ class Server {
         void recieveData();
         void removeClient(int fd);
         void clearClients();
+        static void SignalHandler(int signum);
     };
