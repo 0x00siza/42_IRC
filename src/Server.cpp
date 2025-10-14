@@ -101,18 +101,19 @@ void Server::serverRun(){
 
             for (size_t i = 0; i < _pollFds.size(); i++){
                 if (_pollFds[i].revents & POLLIN){ // check if there is any data to read or a new pending connection
-                    if (_pollFds[i].fd == _listeningSocketFd) // new incoming connections detected
+                    if (_pollFds[i].fd == _listeningSocketFd) // new incoming connections detected on listening socket
                         addNewClient(); // accept all pending connections
-                    else     // It's an already connected client socket
-                        // recieveData();
-                        cout << "client is already connected - trying to recieve/send data\n";
+                    
+                    else{       // It's an already connected client socket
+                        cout << "client is already registered - trying to recieve/send data\n";
+                        recieveData();
+                    }    
                 } 
             }
 
         }
 
     }
-    cout << "after quitting\n";
     closeFds();
 }
 
@@ -125,33 +126,46 @@ void Server::addNewClient(){
    while (true){
     int clientFd = accept(_listeningSocketFd, (struct sockaddr*) &clientAdd, &clientLen);
     if (clientFd < 0){
-        if (errno == EAGAIN || errno == EWOULDBLOCK) break; // no more pending
-        std::perror("accept"); // or throw exception ?
+        if (errno == EAGAIN || errno == EWOULDBLOCK) 
+            break; // no more pending
+        std::perror("accept"); // or throw exception ? -> throw is unecessary here so i will just display the error
         break;
     }
 
     // set to non-blocking socket
     int flags = fcntl(clientFd, F_GETFL, 0);
-    if (flags != -1){
-        fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
+    if (flags == -1){
+        perror("fcntl(F_GETFL) failed");
+        close(clientFd);
     } 
+    
+    if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1){
+        perror("fcntl(F_SETFL, O_NONBLOCK) failed");
+        close(clientFd);
+    }
 
     // set close-on-exec
     int fdFlags = fcntl(clientFd, F_GETFD);
-    if (fdFlags != -1) fcntl(clientFd, F_SETFD, fdFlags | FD_CLOEXEC);
+    if (fdFlags == -1) {
+        perror("fcntl(F_GETFD) failed for FD_CLOEXEC");
+    }
+    else {
+        if (fcntl(clientFd, F_SETFD, fdFlags | FD_CLOEXEC) == -1) {
+            perror("fcntl(F_SETFD, FD_CLOEXEC) failed");
+        }
+    }
     
 
-    Client *newClient = new Client(clientFd);
+    // Client *newClient = new Client(clientFd); leak
 
-    newClient->setHostname(inet_ntoa(clientAdd.sin_addr));
-    
-    
+    Client tempClient(clientFd);
+    tempClient.setHostname(inet_ntoa(clientAdd.sin_addr));
     
     // insert new client to map and check for errors
     // or use simply ->  _clients[clientFd] = newClient;
-    std::pair<std::map<int,Client*>::iterator,bool> res = _clients.insert(std::make_pair(clientFd, newClient));
+    
+    std::pair<std::map<int,Client*>::iterator,bool> res = _clients.insert(std::make_pair(clientFd, &tempClient));
     if (!res.second){
-        delete newClient; // leak
         throw runtime_error("Client already exists!");
     }
 
@@ -161,7 +175,7 @@ void Server::addNewClient(){
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
 
-    cout << "accepted " << newClient->getHostname() << ":" << ntohs(clientAdd.sin_port)
+    cout << "accepted " << tempClient.getHostname() << ":" << ntohs(clientAdd.sin_port)
              << " (fd=" << clientFd << ")\n";
 
     cout << "==============================\n";
@@ -184,7 +198,7 @@ void Server::closeFds() {
         int fd = it->first;
         shutdown(fd, SHUT_RDWR);
         close(fd);
-        delete it->second;
+        // delete it->second; // commented bc i store client by values now :D
     }
     _clients.clear();
 
@@ -196,4 +210,9 @@ void Server::closeFds() {
         close(_listeningSocketFd);
         _listeningSocketFd = -1;
     }
+}
+
+
+void Server::recieveData(){
+
 }
