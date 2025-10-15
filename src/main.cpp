@@ -35,7 +35,6 @@ int main(int ac, char**av)
 
 
     int port = static_cast<int>(x);
-    cout << "port: " << port << endl;
     
     string serverPassword(av[2]);
     if (serverPassword.empty()){
@@ -50,8 +49,10 @@ int main(int ac, char**av)
 		signal(SIGQUIT, Server::SignalHandler);
         Server server(port, serverPassword);
         server.serverStart();
-        std::cout << "listening fd = " << server.getListeningSocketFd() << "\n";
-        std::cout << "pollfds = " << server.getPollFds().size() << "\n";
+
+        // for debugging :D
+        // std::cout << "listening fd = " << server.getListeningSocketFd() << "\n";
+        // std::cout << "pollfds = " << server.getPollFds().size() << "\n";
 
     } 
     catch (const Server::ServerError& e) {

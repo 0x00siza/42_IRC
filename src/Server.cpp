@@ -7,12 +7,11 @@ bool Server::signal = false;
 void Server::SignalHandler(int signum)
 {
 	(void)signum;
-	std::cout << std::endl << "Signal Received!" << std::endl;
+	// std::cout << std::endl << "Signal Received!" << std::endl;
 	Server::signal = true;
 }
 
 void Server::serverStart(){
-    // cout << "server is about to go brrr" << endl;
       
     // setting up your listening socket
     // create a socket :DD
@@ -56,7 +55,7 @@ void Server::serverStart(){
     // btw network sockets are also treated as file descriptors 
     // Set File Descriptor Flags for socket (e.g., Non-Blocking Mode)
     // Non-Blocking Mode -> make the server able to handle multiple clients
-        // without hanging and waiting to send/recieve data for one clinet
+        // without hanging and waiting to send/receive data for one clinet
     if (fcntl(_listeningSocketFd, F_SETFL, O_NONBLOCK)){
         close(_listeningSocketFd);
         throw SocketError("Failed to start listening on socket");
@@ -71,7 +70,7 @@ void Server::serverStart(){
     listeningPollfd.revents = 0;             // revents is set by poll() to indicate actual events
     _pollFds.push_back(listeningPollfd);
 
-    cout << "listening on 0.0.0.0:" << _port << " (fd=" << getListeningSocketFd() << ")\n";
+    cout << "Server is running on 0.0.0.0:" << _port << " with (fd=" << getListeningSocketFd() << ")\n";
     serverRun();
 }
 
@@ -104,10 +103,9 @@ void Server::serverRun(){
                     if (_pollFds[i].fd == _listeningSocketFd) // new incoming connections detected on listening socket
                         addNewClient(); // accept all pending connections
                     
-                    else{       // It's an already connected client socket
-                        cout << "client is already registered - trying to recieve/send data\n";
-                        recieveData(_pollFds[i].fd);
-                    }    
+                    else     // It's an already connected client socket
+                        receiveData(_pollFds[i].fd);
+                        
                 }
                 // handle client disconnections  
             }
@@ -149,17 +147,18 @@ void Server::addNewClient(){
     int fdFlags = fcntl(clientFd, F_GETFD);
     if (fdFlags == -1) {
         perror("fcntl(F_GETFD) failed for FD_CLOEXEC");
+        close(clientFd);
+        continue;
     }
-    else {
-        if (fcntl(clientFd, F_SETFD, fdFlags | FD_CLOEXEC) == -1) {
-            perror("fcntl(F_SETFD, FD_CLOEXEC) failed");
-        }
+   
+    if (fcntl(clientFd, F_SETFD, fdFlags | FD_CLOEXEC) == -1) {
+        perror("fcntl(F_SETFD, FD_CLOEXEC) failed");
+        close(clientFd);
+        continue;
     }
     
-
     Client *newClient = new Client(clientFd);
 
-    // Client tempClient(clientFd);
    newClient->setHostname(inet_ntoa(clientAdd.sin_addr)); // set client's Ip Address
     
     // insert new client to map and check for errors
@@ -167,9 +166,10 @@ void Server::addNewClient(){
     
     std::pair<std::map<int,Client*>::iterator,bool> res = _clients.insert(std::make_pair(clientFd, newClient));
     if (!res.second){
-        // throw runtime_error("Client already exists!");
         cout << "Client is registered!" << endl;
-        return;
+        delete newClient;
+        close(clientFd);
+        continue;
     }
 
     struct pollfd pollFd;
@@ -178,15 +178,18 @@ void Server::addNewClient(){
     pollFd.revents = 0;
     _pollFds.push_back(pollFd);
 
+    cout << "=============================================\n";
     cout << "accepted " <<newClient->getHostname() << ":" << ntohs(clientAdd.sin_port)
              << " (fd=" << clientFd << ")\n";
 
-    cout << "==============================\n";
+    // cout << "==============================\n";
     std::cout << "addNewClient: clientFd=" << clientFd
               << " clients=" << _clients.size()
               << " pollfds=" << _pollFds.size() << std::endl;
     
-              // prepare for next accept
+    cout << "=============================================\n";
+
+    // prepare for next accept
     clientLen = sizeof(clientAdd);
     }
 }
@@ -197,11 +200,11 @@ bool Server::authClient(string &clientPassword){
 
 void Server::closeFds() {
     // close clients
+    cout << "closed fds \n" ;
     for (std::map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
         int fd = it->first;
-        shutdown(fd, SHUT_RDWR);
         close(fd);
-        delete it->second; // commented bc i store client by values now :D
+        delete it->second; 
     }
     _clients.clear();
 
@@ -216,32 +219,59 @@ void Server::closeFds() {
 }
 
 
-void Server::recieveData(int fd){
-    char buffer[1024];
+void Server::receiveData(int fd){
+    char buffer[BUFFER_SIZE];
 
     memset(buffer, 0, sizeof(buffer)); 
-    ssize_t bytesRecieved = recv(fd, buffer, sizeof(buffer) - 1, 0);
-    if (bytesRecieved == 0){
-        // clear client
+    ssize_t bytesreceived = recv(fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytesreceived == 0){
         cout << "Client disconnected on fd= " << fd << endl;
+        // Remove client from any channels they were in.
+        // Notify other users in those channels of their departure.
+        removeClient(fd);
         close(fd);
-        // clear the fd for list of client and pollfds
-        // fds.erase(fds.begin() + i);
-        // --i; // Decrement i because we just removed an element
-
     }
-    else if (bytesRecieved == -1){
+    else if (bytesreceived < 0){
         if (errno != EWOULDBLOCK && errno != EAGAIN) {
             perror("recv() failed");
-            close(fd);
-            // fds.erase(fds.begin() + i);
-            // --i;
+            removeClient(fd);
+            return;
         }
+        return;  // => no data to read
     }
     else{
-        buffer[bytesRecieved] = '\0';
-        cout << "Received data from fd=" << fd << "that is==== " << buffer << endl;
-        // parse data ...
+        // buffer[bytesreceived] = '\0';
+        // cout << "Client with fd= " << fd << " said ||" << buffer << "||" << endl;
+        // parse command from the string depending on the client we using (hexchat/limechat...)
+        std::string cmd(buffer, sizeof(buffer));
+        _clients[fd]->setInputBuffer(cmd);
+        cout << "cmd[" << _clients[fd]->getInputBuffer() << "]" << endl;
+        void parseCommand();
     }
+
+}
+
+
+void Server::removeClient(int fd){
+    
+    // remove client from clients map
+    map<int, Client*>::iterator it = _clients.find(fd);
+    if (it != _clients.end()){
+        delete it->second;
+        _clients.erase(it);
+    }
+
+    //remove from pollfds
+    for (size_t i = 0; i < _pollFds.size(); i++){
+        if (_pollFds[i].fd == fd){
+            _pollFds.erase(_pollFds.begin() + i);
+            break;
+        }
+    }
+
+    cout << "cleanup: removed client fd=" << fd << endl;
+}
+
+void parseCommand(){
 
 }
