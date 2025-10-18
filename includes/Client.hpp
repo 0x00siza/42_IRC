@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <iostream>
 
 using namespace std;
 class Server;
@@ -14,7 +15,8 @@ private:
     string _username;
     string hostname; // IP address of the client
     bool _isAuthenticated;
-    std::string _inputBuffer; // data received from the client
+    std::string _readBuffer; // data received from the client
+    std::string _outputBuffer; // 
 
 public:
     Client(int fd) : _socketFd(fd),
@@ -47,8 +49,8 @@ public:
     void setHostname(const string &host) { hostname = host; }
 
     // recieved command buffer
-    const string &getInputBuffer() const { return _inputBuffer; }
-    void setInputBuffer(const string &buffer) { _inputBuffer = buffer; }
+    const string &getReadBuffer() const { return _readBuffer; }
+    void setReadBuffer(const string &buffer) { _readBuffer = buffer; }
 
     // exceptions
     class clientError : public std::runtime_error
@@ -56,4 +58,6 @@ public:
     public:
         clientError(const std::string &msg) : std::runtime_error(msg) {}
     };
+
+    void parseCommand(string chunk);
 };

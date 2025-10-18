@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <csignal>
 #include "Client.hpp"
+#include "Command.hpp"
 
 #define BUFFER_SIZE 1024
 
@@ -83,6 +84,5 @@ public:
     void removeClient(int fd);
     static void SignalHandler(int signum);
     void sendReplay(Client* client, int errorNum);
-    void parseCommand();
     void processClientCommands();
 };

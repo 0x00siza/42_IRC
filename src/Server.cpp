@@ -107,7 +107,7 @@ void Server::serverRun(){
                         receiveData(_pollFds[i].fd);
                         
                 }
-                // handle client disconnections  
+                // handle client disconnections
             }
 
         }
@@ -130,32 +130,12 @@ void Server::addNewClient(){
         std::perror("accept"); // or throw exception ? -> throw is unecessary here so i will just display the error
         break;
     }
-
-    // set to non-blocking socket
-    int flags = fcntl(clientFd, F_GETFL, 0);
-    if (flags == -1){
-        perror("fcntl(F_GETFL) failed");
-        close(clientFd);
-    } 
     
-    if (fcntl(clientFd, F_SETFL, flags | O_NONBLOCK) == -1){
+    if (fcntl(clientFd, F_SETFL, O_NONBLOCK) == -1){
         perror("fcntl(F_SETFL, O_NONBLOCK) failed");
         close(clientFd);
     }
 
-    // set close-on-exec
-    int fdFlags = fcntl(clientFd, F_GETFD);
-    if (fdFlags == -1) {
-        perror("fcntl(F_GETFD) failed for FD_CLOEXEC");
-        close(clientFd);
-        continue;
-    }
-   
-    if (fcntl(clientFd, F_SETFD, fdFlags | FD_CLOEXEC) == -1) {
-        perror("fcntl(F_SETFD, FD_CLOEXEC) failed");
-        close(clientFd);
-        continue;
-    }
     
     Client *newClient = new Client(clientFd);
 
@@ -242,11 +222,15 @@ void Server::receiveData(int fd){
     else{
         // buffer[bytesreceived] = '\0';
         // cout << "Client with fd= " << fd << " said ||" << buffer << "||" << endl;
-        // parse command from the string depending on the client we using (hexchat/limechat...)
-        std::string cmd(buffer, sizeof(buffer));
-        _clients[fd]->setInputBuffer(cmd);
-        cout << "cmd[" << _clients[fd]->getInputBuffer() << "]" << endl;
-        void parseCommand();
+
+        // parse command 
+        std::string chunk(buffer, sizeof(buffer));
+        // if (chunk.empty()){
+        //     return;
+        // }
+        _clients[fd]->setReadBuffer(chunk);
+        // cout << "chunk[" << _clients[fd]->getReadBuffer() << "]" << endl;
+        _clients[fd]->parseCommand(chunk);
     }
 
 }
@@ -269,9 +253,5 @@ void Server::removeClient(int fd){
         }
     }
 
-    cout << "cleanup: removed client fd=" << fd << endl;
-}
-
-void parseCommand(){
-
+    // cout << "cleanup: removed client fd=" << fd << endl;
 }
