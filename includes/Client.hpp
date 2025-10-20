@@ -15,8 +15,8 @@ private:
     string _username;
     string hostname; // IP address of the client
     bool _isAuthenticated;
-    std::string _readBuffer; // data received from the client
-    std::string _outputBuffer; // 
+    std::string _readBuffer;   // data received from the client
+    std::string _outputBuffer; //
 
 public:
     Client(int fd) : _socketFd(fd),
@@ -59,5 +59,5 @@ public:
         clientError(const std::string &msg) : std::runtime_error(msg) {}
     };
 
-    void parseCommand(string chunk);
+    void processInputBuffer(string chunk);
 };

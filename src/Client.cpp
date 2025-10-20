@@ -1,7 +1,8 @@
 
 #include "../includes/Client.hpp"
 
-void Client::parseCommand(string chunk){
+void Client::processInputBuffer(string chunk)
+{
 
     // append chunk data into the buffer
 
@@ -12,37 +13,61 @@ void Client::parseCommand(string chunk){
     // command should end of "\r\n"
     string command;
 
-    while (true){
-        size_t end = _readBuffer.find("\r\n");
-        size_t fallback_end = _readBuffer.find("\n");
+    while (true)
+    {
+        size_t crlf = _readBuffer.find("\r\n");
+        size_t lf = _readBuffer.find("\n");
 
         size_t pos;
-        bool is_end;
-        if (end != string::npos){ 
-            is_end = true;
-            pos = end;
-        }
-        else if (fallback_end != string::npos){ 
-            is_end = false;
-            pos = fallback_end;
-        }
-        else
+        bool is_delimiter;
+
+        if (crlf == string::npos && lf == string::npos)
             break;
-        
-        command = _readBuffer.substr(0, pos);
 
-        // remove the command plus its delimiter from the buffer + it will stop the loop
-        _readBuffer.erase(0, pos + (is_end ? 2:1));
-        // process command
-        cout << "buffer: [" << _readBuffer << "]\n";
-        cout << "command: " << command << endl;
-        cout << "loop" << endl;
-
-        if (is_end == true)
-            cout << "cmd ends with '\r\n'" << endl;
+        if (crlf != string::npos && (lf == string::npos || crlf <= lf))
+        {
+            is_delimiter = true;
+            pos = crlf;
+        }
         else
-            cout << "cmd ends with '\n'" << endl;
+        {
+            is_delimiter = false;
+            pos = lf;
+        }
 
+        command = _readBuffer.substr(0, pos);
+        std::cout << "command: [" << command << "]\n";
+        _readBuffer.erase(0, pos + (is_delimiter ? 2 : 1));
+
+        
+        cout << "buffer: [" << _readBuffer << "]\n";
+
+        cout << "last char: " << command[command.size() - 1] << endl;
+        if (!command.empty() && command[command.size() - 1] == '\r')
+        {
+            cout << "here" << endl;
+            command.resize(command.size() - 1);
+        }
+        
+        if (command.empty())
+            continue;
+        
+        std::cout << "command: [" << command << "]\n";
+
+
+
+        // processCommand();
+        // TODO:
+        // Enforce limits (max length, allowed chars).
+        // Parse the line into: optional prefix, command token, parameters (with trailing param starting with ':') — RFC 2812 style.
+        // Normalize the command (uppercase) for dispatch.
+        // Dispatch to a handler that:
+        // updates per-client state (nickname, registration).
+        // validates permissions (only respond to some commands before registration).
+        // sends replies (send/queue response strings terminated with "\r\n").
+        // broadcasts to channels / other clients if needed.
+        // closes the client on protocol error or abuse.
+        // Log the command for debugging and remove processed bytes (already done).
+        // Repeat loop to handle more complete lines.
     }
-
 }
