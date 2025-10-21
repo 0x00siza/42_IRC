@@ -2,9 +2,11 @@
 
 #include <string>
 #include <iostream>
+#include <vector>
 
 using namespace std;
 class Server;
+class Command;
 
 class Client
 {
@@ -60,4 +62,6 @@ public:
     };
 
     void processInputBuffer(string chunk);
+    void parseCommand(string &cmd);
+    void executeCommand(string &cmd);
 };
