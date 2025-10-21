@@ -2,12 +2,13 @@
 
 class Server;
 
+// didnt use it :D
 class Command{
     public:
         string prefix;
         string command;
-        string parameters;
+        vector<string> params;
 
         Command() {}
-        
+
 };

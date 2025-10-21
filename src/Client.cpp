@@ -34,7 +34,7 @@ void Client::parseCommand(string &cmd){
     
      // TODO: [<prefix>] <command> <params>
     // Enforce limits (max length, allowed chars).
-    if (cmd.length() > 510){
+    if (cmd.length() > 510){ // Send an error numeric back, preferably ERR_INPUTTOOLONG (417)
         cerr << "command too long" << endl;
         return;
     }
@@ -101,7 +101,31 @@ void Client::parseCommand(string &cmd){
 
 void Client::executeCommand(string &cmd){
     
-    (void)cmd;
+    // but nick and user are used to register a client :D
+    // when client is registered server sends welcome message 
+    if (cmd == "PASS"){
+
+    }
+    else if (cmd == "NICK"){
+    }
+    else if (cmd == "USER"){
+
+    }
+
+    if (this->_isAuthenticated == false && cmd != "NICK" && cmd != "USER"){
+        //  send 451 ERR_NOTREGISTERED to the client and 
+        // stop processing this command.
+    }
+    else {
+        // handle other commands
+    }
+
+    // You must be able to authenticate, set a nickname, a username,
+    // Check Registration.
+    // Validate Input (parameters, format).
+    // Check Permissions/State.
+    // Perform Core Action (change server data).
+    // Notify affected parties (sender, channels, other users).
     // updates per-client state (nickname, registration).
     // validates permissions (only respond to some commands before registration).
     // sends replies (send/queue response strings terminated with "\r\n").

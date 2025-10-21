@@ -84,5 +84,5 @@ public:
     void removeClient(int fd);
     static void SignalHandler(int signum);
     void sendReplay(Client* client, int errorNum);
-    void processClientCommands();
+
 };

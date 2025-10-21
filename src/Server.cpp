@@ -148,7 +148,7 @@ void Server::addNewClient()
             close(clientFd);
         }
 
-        Client *newClient = new Client(clientFd);
+        Client *newClient = new Client(clientFd, this);
 
         newClient->setHostname(inet_ntoa(clientAdd.sin_addr)); // set client's Ip Address
 
