@@ -10,53 +10,23 @@ void Client::processInputBuffer(string chunk)
     _readBuffer.append(chunk);
 
     // command format -> COMMAND [parameters] [:trailing]
-    // command should end of "\r\n"
-    string command;
+   
+    string cmd;
 
     while (true)
     {
         size_t crlf = _readBuffer.find("\r\n");
-        size_t lf = _readBuffer.find("\n");
 
-        size_t pos;
-        bool is_delimiter;
-
-        if (crlf == string::npos && lf == string::npos)
+       if (crlf == string::npos){
+            cout << "no IRC cmd is found" << endl;
             break;
+       }
 
-        if (crlf != string::npos && (lf == string::npos || crlf <= lf))
-        {
-            is_delimiter = true;
-            pos = crlf;
-        }
-        else
-        {
-            is_delimiter = false;
-            pos = lf;
-        }
+       cmd = _readBuffer.substr(0, crlf);
 
-        command = _readBuffer.substr(0, pos);
-        std::cout << "command: [" << command << "]\n";
-        _readBuffer.erase(0, pos + (is_delimiter ? 2 : 1));
+       _readBuffer.erase(0, crlf + 2);
 
-        
-        cout << "buffer: [" << _readBuffer << "]\n";
-
-        cout << "last char: " << command[command.size() - 1] << endl;
-        if (!command.empty() && command[command.size() - 1] == '\r')
-        {
-            cout << "here" << endl;
-            command.resize(command.size() - 1);
-        }
-        
-        if (command.empty())
-            continue;
-        
-        std::cout << "command: [" << command << "]\n";
-
-
-
-        // processCommand();
+       // processCommand();
         // TODO:
         // Enforce limits (max length, allowed chars).
         // Parse the line into: optional prefix, command token, parameters (with trailing param starting with ':') — RFC 2812 style.
