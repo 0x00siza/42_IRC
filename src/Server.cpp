@@ -246,10 +246,11 @@ void Server::receiveData(int fd)
         // parse command
         std::string chunk(buffer, bytesreceived);
         if (chunk.empty())
-        {
             return;
-        }
 
+        // debug :D
+        // std::cout << "Raw: [" << chunk << "] len=" << chunk.size() << std::endl;
+        // for (size_t i = 0; i < chunk.size();i++) std::cout << (int)chunk[i] << '|';
         _clients[fd]->processInputBuffer(chunk);
     }
 }

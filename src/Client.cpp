@@ -18,14 +18,15 @@ void Client::processInputBuffer(string chunk)
         size_t crlf = _readBuffer.find("\r\n");
 
        if (crlf == string::npos){
-            cout << "no IRC cmd is found" << endl;
             break;
        }
 
        cmd = _readBuffer.substr(0, crlf);
-
+       
        _readBuffer.erase(0, crlf + 2);
-
+       
+       cout << "cmd: " << cmd << endl;
+       
        // processCommand();
         // TODO:
         // Enforce limits (max length, allowed chars).
