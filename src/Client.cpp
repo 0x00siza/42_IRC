@@ -1,5 +1,6 @@
 
 #include "../includes/Client.hpp"
+#include "../includes/Command.hpp"
 
 void Client::processInputBuffer(string chunk)
 {
@@ -96,23 +97,30 @@ void Client::parseCommand(string &cmd){
     }
     cout << "]" << endl;
     
-    executeCommand(command);
+    
+    Command newCmd;
+    newCmd.prefix = prefix;
+    newCmd.command = command;
+    newCmd.params = params;
+    
+    executeCommand(newCmd);
 }
 
-void Client::executeCommand(string &cmd){
+void Client::executeCommand(const Command& cmd){
     
-    // but nick and user are used to register a client :D
+    // nick and user are used to register a client :D
     // when client is registered server sends welcome message 
-    if (cmd == "PASS"){
+   
+    if (cmd.command == "PASS"){
+        passCommand(cmd);
+    }
+    else if (cmd.command == "NICK"){
+    }
+    else if (cmd.command == "USER"){
 
     }
-    else if (cmd == "NICK"){
-    }
-    else if (cmd == "USER"){
 
-    }
-
-    if (this->_isAuthenticated == false && cmd != "NICK" && cmd != "USER"){
+    if (this->_isAuthenticated == false && cmd.command != "NICK" && cmd.command != "USER"){
         //  send 451 ERR_NOTREGISTERED to the client and 
         // stop processing this command.
     }

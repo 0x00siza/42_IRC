@@ -5,6 +5,7 @@
 #include <vector>
 
 using namespace std;
+
 class Server;
 class Command;
 
@@ -20,19 +21,20 @@ private:
     std::string _readBuffer;   // data received from the client
     std::string _outputBuffer; //
     Server *server;
+
 public:
     Client(int fd, Server *srv = NULL) : _socketFd(fd),
-                     _password(""),
-                     _nickname(""), // empty until client sets NICK
-                     _username(""), // empty until client sets USER
-                     hostname(""),
-                     _isAuthenticated(false),
-                    server(srv)
+                                         _password(""),
+                                         _nickname(""), // empty until client sets NICK
+                                         _username(""), // empty until client sets USER
+                                         hostname(""),
+                                         _isAuthenticated(false),
+                                         server(srv)
     {
     }
 
     void setServer(Server *srv) { server = srv; }
-    
+
     // socket fd
     int getSocketFd() const { return _socketFd; }
     void setSocketFd(int fd) { _socketFd = fd; }
@@ -66,12 +68,11 @@ public:
 
     void processInputBuffer(string chunk);
     void parseCommand(string &cmd);
-    void executeCommand(string &cmd);
+    void executeCommand(const Command &cmd);
 
-    void handlePassCommand(const Command& cmd); 
-    void handleNickCommand(const Command& cmd);
-    void handleUserCommand(const Command& cmd);
-    void handleJoinCommand(const Command& cmd);
-    void handlePrivMsgCommand(const Command& cmd);
-  
+    void passCommand(const Command &cmd);
+    void handleNickCommand(const Command &cmd);
+    void handleUserCommand(const Command &cmd);
+    void handleJoinCommand(const Command &cmd);
+    void handlePrivMsgCommand(const Command &cmd);
 };

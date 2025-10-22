@@ -1,8 +1,8 @@
 #pragma once
 
 class Server;
+class Client;
 
-// didnt use it :D
 class Command{
     public:
         string prefix;

@@ -186,11 +186,6 @@ void Server::addNewClient()
     }
 }
 
-bool Server::authClient(string &clientPassword)
-{
-    return clientPassword == _serverPassword;
-}
-
 void Server::closeFds()
 {
     // close clients
