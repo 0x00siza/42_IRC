@@ -17,11 +17,17 @@ private:
     string _nickname;
     string _username;
     string hostname; // IP address of the client
-    bool _isAuthenticated;
+    
     std::string _readBuffer;   // data received from the client
     std::string _outputBuffer; //
+    
     Server *server;
 
+    bool _isAuthenticated;
+    bool _isPassSet;
+    bool _isNickSet;
+    bool _isUserSet;
+    
 public:
     Client(int fd, Server *srv = NULL) : _socketFd(fd),
                                          _password(""),
@@ -69,10 +75,11 @@ public:
     void processInputBuffer(string chunk);
     void parseCommand(string &cmd);
     void executeCommand(const Command &cmd);
-
+    
     void passCommand(const Command &cmd);
-    void handleNickCommand(const Command &cmd);
-    void handleUserCommand(const Command &cmd);
-    void handleJoinCommand(const Command &cmd);
-    void handlePrivMsgCommand(const Command &cmd);
+    void nickCommand(const Command &cmd);
+    void userCommand(const Command &cmd);
+
+    // petit utils
+    bool checkUniqueNickname(string nickname);
 };

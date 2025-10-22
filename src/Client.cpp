@@ -115,9 +115,10 @@ void Client::executeCommand(const Command& cmd){
         passCommand(cmd);
     }
     else if (cmd.command == "NICK"){
+        nickCommand(cmd);
     }
     else if (cmd.command == "USER"){
-
+        
     }
 
     if (this->_isAuthenticated == false && cmd.command != "NICK" && cmd.command != "USER"){

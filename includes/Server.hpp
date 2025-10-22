@@ -46,6 +46,8 @@ public:
     int getPort() const { return _port; }
     void setPort(int p) { _port = p; }
 
+     std::map<int, Client*>& getClients() { return _clients; }
+     
     const string &getPassword() const { return _serverPassword; }
     void setPassword(const string &pw) { _serverPassword = pw; }
 
