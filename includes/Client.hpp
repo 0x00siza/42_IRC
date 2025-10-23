@@ -17,7 +17,8 @@ private:
     string _nickname;
     string _username;
     string hostname; // IP address of the client
-    
+    string _realname;
+
     std::string _readBuffer;   // data received from the client
     std::string _outputBuffer; //
     
@@ -27,6 +28,7 @@ private:
     bool _isPassSet;
     bool _isNickSet;
     bool _isUserSet;
+    bool _isRegistered;
     
 public:
     Client(int fd, Server *srv = NULL) : _socketFd(fd),
@@ -34,8 +36,13 @@ public:
                                          _nickname(""), // empty until client sets NICK
                                          _username(""), // empty until client sets USER
                                          hostname(""),
+                                         _realname(""),
+                                         server(srv),
                                          _isAuthenticated(false),
-                                         server(srv)
+                                        _isPassSet(false),
+                                        _isNickSet(false),
+                                        _isUserSet(false),
+                                        _isRegistered(false)
     {
     }
 
@@ -65,6 +72,8 @@ public:
     const string &getReadBuffer() const { return _readBuffer; }
     void setReadBuffer(const string &buffer) { _readBuffer = buffer; }
 
+    const string &getRealname() const { return _realname; }
+    void setRealname(const string &real) { _realname = real; }
     // exceptions
     class clientError : public std::runtime_error
     {
@@ -82,4 +91,5 @@ public:
 
     // petit utils
     bool checkUniqueNickname(string nickname);
+    void tryToRegister();
 };

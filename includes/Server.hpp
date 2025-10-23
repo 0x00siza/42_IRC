@@ -34,6 +34,7 @@ private:
     vector<struct pollfd> _pollFds; // vector of file descriptors
     map<int, Client *> _clients;    // vector of clients
     static bool signal;
+    map<int, Client *> _registeredClients;
 
 public:
     Server(int port, string &password) : _port(port), _serverPassword(password),
@@ -46,7 +47,8 @@ public:
     int getPort() const { return _port; }
     void setPort(int p) { _port = p; }
 
-     std::map<int, Client*>& getClients() { return _clients; }
+    std::map<int, Client*>& getClients() { return _clients; }
+    std::map<int, Client*>& getRegisteredClients() { return _registeredClients; }
      
     const string &getPassword() const { return _serverPassword; }
     void setPassword(const string &pw) { _serverPassword = pw; }

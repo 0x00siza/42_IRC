@@ -8,9 +8,6 @@ void Client::processInputBuffer(string chunk)
     _readBuffer.append(chunk);
     string cmd;
 
-    // command format -> COMMAND [parameters] [:trailing]
-   
-
     while (true)
     {
         size_t crlf = _readBuffer.find("\r\n");
@@ -22,7 +19,6 @@ void Client::processInputBuffer(string chunk)
        cmd = _readBuffer.substr(0, crlf);
        _readBuffer.erase(0, crlf + 2);
 
-       cout << "cmd: " << cmd << endl;
        if (cmd.empty())
             return;
        parseCommand(cmd);
@@ -33,8 +29,8 @@ void Client::processInputBuffer(string chunk)
 void Client::parseCommand(string &cmd){
 
     
-     // TODO: [<prefix>] <command> <params>
-    // Enforce limits (max length, allowed chars).
+    // command format: [<prefix>] <command> <params>
+    
     if (cmd.length() > 510){ // Send an error numeric back, preferably ERR_INPUTTOOLONG (417)
         cerr << "command too long" << endl;
         return;
@@ -45,7 +41,7 @@ void Client::parseCommand(string &cmd){
 
     if (prefStart != string::npos){
         string prefix = cmd.substr(prefStart, prefEnd);
-        cout << "prefix: " << prefix << endl;
+        // cout << "prefix: " << prefix << endl;
     }
 
     size_t pos = 0;
@@ -90,12 +86,12 @@ void Client::parseCommand(string &cmd){
     }
 
     // debug :D
-    cout << "parsed: prefix=[" << prefix << "] command=[" << command << "] params=[";
-    for (size_t i = 0; i < params.size(); ++i) {
-        if (i) cout << ", ";
-        cout << params[i];
-    }
-    cout << "]" << endl;
+    // cout << "parsed: prefix=[" << prefix << "] command=[" << command << "] params=[";
+    // for (size_t i = 0; i < params.size(); ++i) {
+    //     if (i) cout << ", ";
+    //     cout << params[i];
+    // }
+    // cout << "]" << endl;
     
     
     Command newCmd;
@@ -108,38 +104,35 @@ void Client::parseCommand(string &cmd){
 
 void Client::executeCommand(const Command& cmd){
     
-    // nick and user are used to register a client :D
-    // when client is registered server sends welcome message 
-   
-    if (cmd.command == "PASS"){
-        passCommand(cmd);
+    // user must use PASS with correct password to proceed with registration
+    
+    // check registration first
+    if (!_isRegistered) {
+        if (cmd.command == "PASS") {
+            passCommand(cmd);
+        } else if (cmd.command == "NICK") {
+            nickCommand(cmd);
+        } else if (cmd.command == "USER") {
+            userCommand(cmd);
+        } else {
+            
+            // 451, "You have not registered" // ERR_NOTREGISTERED
+            cerr << "You have not registered yet" << endl;
+            return;
+        }
+        return;
     }
-    else if (cmd.command == "NICK"){
-        nickCommand(cmd);
+    
+    // proceed with other commands :3
+    if (cmd.command == "NICK") // can be used multiple times after registration :D
+            nickCommand(cmd);
+    else if (cmd.command == "JOIN"){
+        cout << "JOIN command hehe" << endl;
+    
     }
-    else if (cmd.command == "USER"){
-        
+    else if (cmd.command == "QUIT"){
+        // ...
     }
-
-    if (this->_isAuthenticated == false && cmd.command != "NICK" && cmd.command != "USER"){
-        //  send 451 ERR_NOTREGISTERED to the client and 
-        // stop processing this command.
-    }
-    else {
-        // handle other commands
-    }
-
-    // You must be able to authenticate, set a nickname, a username,
-    // Check Registration.
-    // Validate Input (parameters, format).
-    // Check Permissions/State.
-    // Perform Core Action (change server data).
-    // Notify affected parties (sender, channels, other users).
-    // updates per-client state (nickname, registration).
-    // validates permissions (only respond to some commands before registration).
     // sends replies (send/queue response strings terminated with "\r\n").
-    // broadcasts to channels / other clients if needed.
-    // closes the client on protocol error or abuse.
-    // Log the command for debugging and remove processed bytes (already done).
-    // Repeat loop to handle more complete lines.
+
 }
