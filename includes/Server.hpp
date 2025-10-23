@@ -20,6 +20,8 @@
 #include <csignal>
 #include "Client.hpp"
 #include "Command.hpp"
+#include <sstream>
+#include <iomanip>
 
 #define BUFFER_SIZE 1024
 
@@ -31,6 +33,7 @@ private:
     int _port;
     string _serverPassword;
     int _listeningSocketFd;         // server listening socket
+    const string _name;
     vector<struct pollfd> _pollFds; // vector of file descriptors
     map<int, Client *> _clients;    // vector of clients
     static bool signal;
@@ -38,7 +41,7 @@ private:
 
 public:
     Server(int port, string &password) : _port(port), _serverPassword(password),
-                                         _listeningSocketFd(-1)
+                                         _listeningSocketFd(-1),_name("IRC SERVER")
     {
     }
     // cpy construcor ...
@@ -87,6 +90,9 @@ public:
     void receiveData(int fd);
     void removeClient(int fd);
     static void SignalHandler(int signum);
-    void sendReplay(Client* client, int errorNum);
+
+    // handle communication => Server -> Client
+    void sendReplay(Client* client, int errorNum, string message);
+    void send_raw_data(Client* client, const std::string& data);
 
 };

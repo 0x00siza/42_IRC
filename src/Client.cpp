@@ -1,6 +1,7 @@
 
-#include "../includes/Client.hpp"
-#include "../includes/Command.hpp"
+#include "Client.hpp"
+#include "Command.hpp"
+#include "Server.hpp"
 
 void Client::processInputBuffer(string chunk)
 {
@@ -116,8 +117,7 @@ void Client::executeCommand(const Command& cmd){
             userCommand(cmd);
         } else {
             
-            // 451, "You have not registered" // ERR_NOTREGISTERED
-            cerr << "You have not registered yet" << endl;
+            this->server->sendReplay(this, 451, "You have not registered");
             return;
         }
         return;

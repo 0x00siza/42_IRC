@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 
+
 using namespace std;
 
 class Server;
@@ -44,6 +45,7 @@ public:
                                         _isUserSet(false),
                                         _isRegistered(false)
     {
+        hostname = "some.host.example.com";
     }
 
     void setServer(Server *srv) { server = srv; }

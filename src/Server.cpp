@@ -270,6 +270,44 @@ void Server::removeClient(int fd)
             break;
         }
     }
-
-    // cout << "cleanup: removed client fd=" << fd << endl;
 }
+
+void Server::send_raw_data(Client* client, const std::string& data) {
+    std::string full_data = data + "\r\n";
+
+    if (send(client->getSocketFd(), full_data.c_str(), full_data.length(), 0) == -1) {
+        std::cerr << "Error sending data to client " << client->getSocketFd() << ": " << strerror(errno) << std::endl;
+        close(client->getSocketFd());
+    }
+}
+
+void Server::sendReplay(Client* client, int errorNum, string message){
+    std::ostringstream oss;
+
+    oss << ":" << this->_name << " ";
+    oss << std::setw(3) << std::setfill('0') << errorNum << " "; // Numeric code (e.g., 001, 433)
+    oss << client->getNickname().empty() ? "*" : client->getNickname(); // Recipient: client's nick, or '*' if not registered
+    
+    if (!message.empty()) {
+        oss << " " << message;
+    }
+
+    send_raw_data(client, oss.str());
+}
+
+
+// void Client::send_welcome_messages() {
+//     const std::string& nick = getNickname();
+//     const std::string& user = getUsername();
+//     const std::string& host = getHostname();
+
+//     send_reply(1, nick, ":Welcome to the Internet Relay Network " + nick + "!" + user + "@" + host); // RPL_WELCOME (001)
+//     send_reply(2, nick, ":Your host is " + server->getName() + ", running version " + server->getVersion()); // RPL_YOURHOST (002)
+//     send_reply(3, nick, ":This server was created " + server->getCreationDate()); // RPL_CREATED (003)
+//     send_reply(4, nick, server->getName(), server->getVersion() + " " + server->getAvailableUserModes() + " " + server->getAvailableChannelModes()); // RPL_MYINFO (004)
+    
+//     // Optional: Message of the Day (MOTD)
+//     send_reply(375, nick, ":- " + server->getName() + " Message of the Day -"); // RPL_MOTDSTART
+//     send_reply(372, nick, ":- Welcome to my awesome IRC server!"); // RPL_MOTD (can be multiple lines)
+//     send_reply(376, nick, ":End of MOTD command"); // RPL_ENDOFMOTD
+// }

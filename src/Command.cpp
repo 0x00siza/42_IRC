@@ -5,26 +5,23 @@
 
 void Client::passCommand(const Command &cmd)
 {
-    if (cmd.params.empty() || cmd.params.size() < 1)
+    if (cmd.params.empty() || cmd.params.size() != 1)
     {
-        // send to client -> 461 "PASS :Not enough parameters"
-        cerr << "not enough arguments for PASS command!" << endl;
+        server->sendReplay(this, 461, "Not enough parameters");
         return;
     }
     
     if (_isRegistered == true)
     {
-        // send to client -> 462, "You may not reregister"
-        cerr << "You are alreayd registered :D\n";
+        server->sendReplay(this, 462, ":You may not reregister");
         return;
     }
 
     this->setPassword(cmd.params[0]);
     
-    // check if passwords match
     if (this->getPassword() != server->getPassword()){
-        cerr << "wrong password!" << endl;
         _isAuthenticated = false;
+        server->sendReplay(this, 464, ":Password Incorrect"); // ??
         return;
     }
 
@@ -35,21 +32,18 @@ void Client::passCommand(const Command &cmd)
 
 void Client::nickCommand(const Command &cmd)
 {
-    if (cmd.params.empty() || cmd.params.size() < 1)
+    if (cmd.params.empty() || cmd.params.size() < 1 || cmd.params[0].length() > 9)
     {
-        // send to client -> ERR_NONICKNAMEGIVEN
-        cerr << "not enough arguments for PASS command!" << endl;
+        server->sendReplay(this, 431, ":No nickname given");
         return;
     }
     else if (cmd.params[0].empty() || cmd.params[0][0] == '#' || cmd.params[0][0] == ':' || cmd.params[0].find(' ') != std::string::npos){
-        // 432, newNick, "Erroneous nickname"); // ERR_ERRONEUSNICKNAME
-        cerr << "ERR_ERRONEUSNICKNAME" << endl;
+        server->sendReplay(this, 432, "Erroneous nickname");
         return;
     }
     else if (checkUniqueNickname(cmd.params[0]) == false)
     {
-        // 433,  ":Nickname is already in use"
-        cerr << "Nickname is already in use" << endl;
+        server->sendReplay(this, 433, ":Nickname is already in use");
         return;
     }
 
@@ -85,11 +79,11 @@ bool Client::checkUniqueNickname(string nickname)
 void Client::userCommand(const Command& cmd){
 
      if (cmd.params.size() < 4) { // Needs username, mode, unused, and realname (trailing)
-        // server.sendReply(this, 461, "USER", "Not enough parameters");
+        server->sendReplay(this, 461, "Not enough parameters");
         return;
     }
-    if (_isUserSet) { // USER can only be sent once
-        // server.sendReply(this, 462, "You may not reregister"); // ERR_ALREADYREGISTERED
+    if (_isUserSet) {
+        server->sendReplay(this, 462, ":You may not reregister");
         return;
     }
 
@@ -123,16 +117,10 @@ void Client::tryToRegister(){
     // add to registered clients 
     std::pair<std::map<int, Client *>::iterator, bool> res = server->getRegisteredClients().insert(std::make_pair(this->_socketFd, this));
     if (!res.second){
-        cerr << "Client is already registered!" << endl;
+        server->sendReplay(this, 462, ":You may not reregister");
     }
 
     cout << "Client " << getNickname() << " is fully registered!" << endl;
 
     // send weclome message :D
 }
-
-// TODO :
-//  work on  USER command
-// add sender to send errors and logs to the client via the socket :D
-//  test if everything is working fine
-//  finitoo
