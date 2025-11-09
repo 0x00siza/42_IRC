@@ -1,5 +1,7 @@
 
 #include "../includes/Server.hpp"
+#include "../includes/Client.hpp"
+#include "../includes/Channel.hpp"
 
 
 void Server::serverStart(){
@@ -57,5 +59,63 @@ void Server::serverStart(){
 // close fds when finished !!!
 
 bool Server::authClient(string &clientPassword){
-            return clientPassword == _serverPassword;
+    return clientPassword == _serverPassword;
+}
+
+// Client management
+void Server::addClient(int fd, Client* client) {
+    _clients[fd] = client;
+}
+
+void Server::removeClient(int fd) {
+    map<int, Client*>::iterator it = _clients.find(fd);
+    if (it != _clients.end()) {
+        delete it->second;
+        _clients.erase(it);
+    }
+}
+
+Client* Server::getClientByFd(int fd) {
+    map<int, Client*>::iterator it = _clients.find(fd);
+    if (it != _clients.end())
+        return it->second;
+    return NULL;
+}
+
+Client* Server::getClientByNick(const string& nickname) {
+    for (map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        if (it->second->getNickname() == nickname)
+            return it->second;
+    }
+    return NULL;
+}
+
+// Channel management
+Channel* Server::getChannel(const string& name) {
+    map<string, Channel*>::iterator it = _channels.find(name);
+    if (it != _channels.end())
+        return it->second;
+    return NULL;
+}
+
+Channel* Server::createChannel(const string& name) {
+    if (channelExists(name))
+        return getChannel(name);
+    
+    Channel* channel = new Channel(name);
+    _channels[name] = channel;
+    return channel;
+}
+
+void Server::removeChannel(const string& name) {
+    map<string, Channel*>::iterator it = _channels.find(name);
+    if (it != _channels.end()) {
+        delete it->second;
+        _channels.erase(it);
+    }
+}
+
+
+bool Server::channelExists(const string& name) const {
+    return _channels.find(name) != _channels.end();
 }

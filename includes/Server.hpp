@@ -20,6 +20,7 @@
 
 using namespace std;
 class Client;
+class Channel;
 
 class Server {
     private:
@@ -28,6 +29,7 @@ class Server {
         int _listeningSocketFd;
         vector<struct pollfd> _pollFds;
         map<int, Client*> _clients;
+        map<string, Channel*> _channels; // Channel name -> Channel
 
     public:
         Server(int port, string& password):_port(port), _serverPassword(password),
@@ -46,9 +48,22 @@ class Server {
         int getListeningSocketFd() const { return _listeningSocketFd; }
         void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
 
+        const map<int, Client*>& getClients() const { return _clients; }
+        const map<string, Channel*>& getChannels() const { return _channels; }
+
+        // Client management
         void addClient(int fd, Client* client);
         void removeClient(int fd);
+        Client* getClientByFd(int fd);
+        Client* getClientByNick(const string& nickname);
         bool authClient(string &clientPassword);
+        
+        // Channel management
+        Channel* getChannel(const string& name);
+        Channel* createChannel(const string& name);
+        void removeChannel(const string& name);
+        bool channelExists(const string& name) const;
+        
         void serverStart();
 
         // exceptions 
