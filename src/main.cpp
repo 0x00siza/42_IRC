@@ -35,30 +35,44 @@ int main(int ac, char**av)
 
 
     int port = static_cast<int>(x);
-    cout << "port: " << port << endl;
     
     string serverPassword(av[2]);
     if (serverPassword.empty()){
         std::cerr << "Password cannot be empty\n";
         return EXIT_FAILURE;
     }
-    // should I put limit to the password length ? :c
 
-    Server server(port, serverPassword);
     
     try {
+        
+        signal(SIGINT, Server::SignalHandler);
+		signal(SIGQUIT, Server::SignalHandler);
+        Server server(port, serverPassword);
         server.serverStart();
-    } catch (const Server::ServerError& e) {
+
+        // for debugging :D
+        // std::cout << "listening fd = " << server.getListeningSocketFd() << "\n";
+        // std::cout << "pollfds = " << server.getPollFds().size() << "\n";
+
+    } 
+    catch (const Server::ServerError& e) {
         std::cerr << "Fatal Server Error: " << e.what() << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
-    } catch (const std::bad_alloc& e) { // Catch out-of-memory specifically
+    } 
+    catch (const std::bad_alloc& e) { // Catch out-of-memory specifically
         std::cerr << "Out of memory: " << e.what() << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
-    } catch (const std::exception& e) { // Catch any other standard exceptions
+    } 
+    catch (const std::exception& e) { // Catch any other standard exceptions
         std::cerr << "An unexpected error occurred: " << e.what() << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
-    } catch (...) { // Catch any other unknown exceptions
+    } 
+    catch (...) { // Catch any other unknown exceptions
         std::cerr << "An unknown fatal error occurred." << std::endl;
+        // server.closeFds();
         return EXIT_FAILURE;
     }
     
