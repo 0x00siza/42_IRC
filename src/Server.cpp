@@ -1,121 +1,313 @@
 
 #include "../includes/Server.hpp"
-#include "../includes/Client.hpp"
-#include "../includes/Channel.hpp"
 
+bool Server::signal = false;
 
-void Server::serverStart(){
-    std::cout << "server is about to go brrr" << std::endl;
-      
+void Server::SignalHandler(int signum)
+{
+    (void)signum;
+    // std::cout << std::endl << "Signal Received!" << std::endl;
+    Server::signal = true;
+}
+
+void Server::serverStart()
+{
+
+    // setting up your listening socket
     // create a socket :DD
     setListeningSocketFd(socket(AF_INET, SOCK_STREAM, 0));
-    if (_listeningSocketFd < 0){
+    if (_listeningSocketFd < 0)
+    {
         throw SocketError("Failed to create socket");
     }
-        
+
     // set socket options , the most important is SO_REUSEADDR to avoid
     // "Address already in use" errors when restarting your server quickly :)
     int opt = 1;
-    if (setsockopt(_listeningSocketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+    if (setsockopt(_listeningSocketFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+    {
         close(_listeningSocketFd);
         throw std::runtime_error("Failed to set socket option SO_REUSEADDR");
     }
-    
+
     // bind = associate the socket with the server's IP add + port number
     struct sockaddr_in server_addr;
     std::memset(&server_addr, 0, sizeof(server_addr)); // set all struct values to 0
-    server_addr.sin_family = AF_INET;           // IPv4 address family
-    server_addr.sin_addr.s_addr = INADDR_ANY;   // Listen on all available network interfaces
-                                                // You could also use inet_addr("127.0.0.1") for localhost only
-    server_addr.sin_port = htons(_port);  // Convert port number to network byte order (Host TO Network Short)
+    server_addr.sin_family = AF_INET;                  // IPv4 address family
+    server_addr.sin_addr.s_addr = INADDR_ANY;          // Listen on all available network interfaces
+                                                       // You could also use inet_addr("127.0.0.1") for localhost only
+    server_addr.sin_port = htons(_port);               // Convert port number to network byte order (Host TO Network Short)
 
-    if (bind(_listeningSocketFd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+    if (bind(_listeningSocketFd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+    {
         close(_listeningSocketFd);
         throw NetworkError("Can't bind socket"); // network error or socket error
     }
-    // all these lines associated to bind result -> telling the OS to Associate this socket (_listeningSocketFd) 
+    // all these lines associated to bind result -> telling the OS to Associate this socket (_listeningSocketFd)
     // with IPv4 connections that arrive at any of my local IP addresses on the port
-    
- 
+
     // Make the socket ready to accept new connections.
     // SOMAXCONN sets the max number of clients waiting to connect (in a queue).
     // This queue holds connections that are finishing their 3-way handshake.
-    if (listen(_listeningSocketFd, SOMAXCONN) == -1){
+    if (listen(_listeningSocketFd, SOMAXCONN) == -1)
+    {
         close(_listeningSocketFd);
         throw SocketError("Failed to start listening on socket");
     }
 
+    // btw network sockets are also treated as file descriptors
     // Set File Descriptor Flags for socket (e.g., Non-Blocking Mode)
-    if (fcntl(_listeningSocketFd, F_SETFL, O_NONBLOCK)){
+    // Non-Blocking Mode -> make the server able to handle multiple clients
+    // without hanging and waiting to send/receive data for one clinet
+    if (fcntl(_listeningSocketFd, F_SETFL, O_NONBLOCK))
+    {
         close(_listeningSocketFd);
         throw SocketError("Failed to start listening on socket");
     }
-    
-    std::cout << "listening on 0.0.0.0:" << _port << " (fd=" << getListeningSocketFd() << ")\n";
-    // cant connect to privelieged ports btw so use port >= 1024
-    
+
+    // note: cant connect to privelieged ports btw so use port >= 1024
+
+    // setting up a structure to hold file descriptors for poll()
+    struct pollfd listeningPollfd;
+    listeningPollfd.fd = _listeningSocketFd; // file descriptor to watch
+    listeningPollfd.events = POLLIN;         // Watch for incoming data (new clients) -> set the event to POLLIN for reading data
+    listeningPollfd.revents = 0;             // revents is set by poll() to indicate actual events
+    _pollFds.push_back(listeningPollfd);
+
+    cout << "Server is running on 0.0.0.0:" << _port << " with (fd=" << getListeningSocketFd() << ")\n";
+    serverRun();
 }
 
-// close fds when finished !!!
+void Server::serverRun()
+{
 
-bool Server::authClient(string &clientPassword){
-    return clientPassword == _serverPassword;
+    cout << "waiting for connections..." << endl;
+
+    while (signal == false)
+    {
+
+        int fds_count = poll(&_pollFds[0], _pollFds.size(), -1); // waits for file descriptors to become ready to perform I/O
+        if (fds_count == -1)
+        {
+
+            if (errno == EINTR)
+            {
+                // Poll was interrupted by a signal. Loop again to check signals.
+                continue;
+            }
+            // clean up fds and clients ...
+            // closeFds();
+            throw ServerError("Poll failed!");
+        }
+        else if (fds_count == 0)
+        {
+            // no event occured here just continue
+            continue;
+        }
+        else
+        { // event occured
+
+            for (size_t i = 0; i < _pollFds.size(); i++)
+            {
+                if (_pollFds[i].revents & POLLIN)
+                {                                             // check if there is any data to read or a new pending connection
+                    if (_pollFds[i].fd == _listeningSocketFd) // new incoming connections detected on listening socket
+                        addNewClient();                       // accept all pending connections
+
+                    else // It's an already connected client socket
+                        receiveData(_pollFds[i].fd);
+                }
+                // handle client disconnections
+            }
+        }
+    }
+    closeFds();
 }
 
-// Client management
-void Server::addClient(int fd, Client* client) {
-    _clients[fd] = client;
+// accept all pending connections (non-blocking accept loop)
+void Server::addNewClient()
+{
+
+    struct sockaddr_in clientAdd;
+    socklen_t clientLen = sizeof(clientAdd);
+
+    while (true)
+    {
+        int clientFd = accept(_listeningSocketFd, (struct sockaddr *)&clientAdd, &clientLen);
+        if (clientFd < 0)
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                break;             // no more pending
+            std::perror("accept"); // or throw exception ? -> throw is unecessary here so i will just display the error
+            break;
+        }
+
+        if (fcntl(clientFd, F_SETFL, O_NONBLOCK) == -1)
+        {
+            perror("fcntl(F_SETFL, O_NONBLOCK) failed");
+            close(clientFd);
+        }
+
+        Client *newClient = new Client(clientFd, this);
+
+        newClient->setHostname(inet_ntoa(clientAdd.sin_addr)); // set client's Ip Address
+
+        // insert new client to map and check for errors
+        // or use simply ->  _clients[clientFd] = newClient;
+
+        std::pair<std::map<int, Client *>::iterator, bool> res = _clients.insert(std::make_pair(clientFd, newClient));
+        if (!res.second)
+        {
+            cout << "Client is registered!" << endl;
+            delete newClient;
+            close(clientFd);
+            continue;
+        }
+
+        struct pollfd pollFd;
+        pollFd.fd = clientFd;
+        pollFd.events = POLLIN;
+        pollFd.revents = 0;
+        _pollFds.push_back(pollFd);
+
+        cout << "=============================================\n";
+        cout << "accepted " << newClient->getHostname() << ":" << ntohs(clientAdd.sin_port)
+             << " (fd=" << clientFd << ")\n";
+
+        // cout << "==============================\n";
+        std::cout << "addNewClient: clientFd=" << clientFd
+                  << " clients=" << _clients.size()
+                  << " pollfds=" << _pollFds.size() << std::endl;
+
+        cout << "=============================================\n";
+
+        // prepare for next accept
+        clientLen = sizeof(clientAdd);
+    }
 }
 
-void Server::removeClient(int fd) {
-    map<int, Client*>::iterator it = _clients.find(fd);
-    if (it != _clients.end()) {
+void Server::closeFds()
+{
+    // close clients
+    cout << "closed fds \n";
+    for (std::map<int, Client *>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+    {
+        int fd = it->first;
+        close(fd);
+        delete it->second;
+    }
+    _clients.clear();
+
+    // clear poll fds
+    _pollFds.clear();
+
+    // close listening socket
+    if (_listeningSocketFd >= 0)
+    {
+        close(_listeningSocketFd);
+        _listeningSocketFd = -1;
+    }
+}
+
+void Server::receiveData(int fd)
+{
+    char buffer[BUFFER_SIZE];
+
+    memset(buffer, 0, sizeof(buffer));
+    ssize_t bytesreceived = recv(fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytesreceived == 0)
+    {
+        cout << "Client disconnected on fd= " << fd << endl;
+        // Remove client from any channels they were in.
+        // Notify other users in those channels of their departure.
+        removeClient(fd);
+        close(fd);
+    }
+    else if (bytesreceived < 0)
+    {
+        if (errno != EWOULDBLOCK && errno != EAGAIN)
+        {
+            perror("recv() failed");
+            removeClient(fd);
+            return;
+        }
+        return; // => no data to read
+    }
+    else
+    {
+        // buffer[bytesreceived] = '\0';
+        // cout << "Client with fd= " << fd << " said ||" << buffer << "||" << endl;
+
+        // parse command
+        std::string chunk(buffer, bytesreceived);
+        if (chunk.empty())
+            return;
+
+        // debug :D
+        // std::cout << "Raw: [" << chunk << "] len=" << chunk.size() << std::endl;
+        // for (size_t i = 0; i < chunk.size();i++) std::cout << (int)chunk[i] << '|';
+        _clients[fd]->processInputBuffer(chunk);
+    }
+}
+
+void Server::removeClient(int fd)
+{
+
+    // remove client from clients map
+    map<int, Client *>::iterator it = _clients.find(fd);
+    if (it != _clients.end())
+    {
         delete it->second;
         _clients.erase(it);
     }
-}
 
-Client* Server::getClientByFd(int fd) {
-    map<int, Client*>::iterator it = _clients.find(fd);
-    if (it != _clients.end())
-        return it->second;
-    return NULL;
-}
-
-Client* Server::getClientByNick(const string& nickname) {
-    for (map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
-        if (it->second->getNickname() == nickname)
-            return it->second;
+    // remove from pollfds
+    for (size_t i = 0; i < _pollFds.size(); i++)
+    {
+        if (_pollFds[i].fd == fd)
+        {
+            _pollFds.erase(_pollFds.begin() + i);
+            break;
+        }
     }
-    return NULL;
 }
 
-// Channel management
-Channel* Server::getChannel(const string& name) {
-    map<string, Channel*>::iterator it = _channels.find(name);
-    if (it != _channels.end())
-        return it->second;
-    return NULL;
+void Server::send_raw_data(Client* client, const std::string& data) {
+    std::string full_data = data + "\r\n";
+
+    if (send(client->getSocketFd(), full_data.c_str(), full_data.length(), 0) == -1) {
+        std::cerr << "Error sending data to client " << client->getSocketFd() << ": " << strerror(errno) << std::endl;
+        close(client->getSocketFd());
+    }
 }
 
-Channel* Server::createChannel(const string& name) {
-    if (channelExists(name))
-        return getChannel(name);
+void Server::sendReplay(Client* client, int errorNum, string message){
+    std::ostringstream oss;
+
+    oss << ":" << this->_name << " ";
+    oss << std::setw(3) << std::setfill('0') << errorNum << " "; // Numeric code (e.g., 001, 433)
+    oss << client->getNickname().empty() ? "*" : client->getNickname(); // Recipient: client's nick, or '*' if not registered
     
-    Channel* channel = new Channel(name);
-    _channels[name] = channel;
-    return channel;
-}
-
-void Server::removeChannel(const string& name) {
-    map<string, Channel*>::iterator it = _channels.find(name);
-    if (it != _channels.end()) {
-        delete it->second;
-        _channels.erase(it);
+    if (!message.empty()) {
+        oss << " " << message;
     }
+
+    send_raw_data(client, oss.str());
 }
 
 
-bool Server::channelExists(const string& name) const {
-    return _channels.find(name) != _channels.end();
-}
+// void Client::send_welcome_messages() {
+//     const std::string& nick = getNickname();
+//     const std::string& user = getUsername();
+//     const std::string& host = getHostname();
+
+//     send_reply(1, nick, ":Welcome to the Internet Relay Network " + nick + "!" + user + "@" + host); // RPL_WELCOME (001)
+//     send_reply(2, nick, ":Your host is " + server->getName() + ", running version " + server->getVersion()); // RPL_YOURHOST (002)
+//     send_reply(3, nick, ":This server was created " + server->getCreationDate()); // RPL_CREATED (003)
+//     send_reply(4, nick, server->getName(), server->getVersion() + " " + server->getAvailableUserModes() + " " + server->getAvailableChannelModes()); // RPL_MYINFO (004)
+    
+//     // Optional: Message of the Day (MOTD)
+//     send_reply(375, nick, ":- " + server->getName() + " Message of the Day -"); // RPL_MOTDSTART
+//     send_reply(372, nick, ":- Welcome to my awesome IRC server!"); // RPL_MOTD (can be multiple lines)
+//     send_reply(376, nick, ":End of MOTD command"); // RPL_ENDOFMOTD
+// }

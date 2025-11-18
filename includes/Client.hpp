@@ -1,64 +1,97 @@
 #pragma once
 
 #include <string>
+#include <iostream>
 #include <vector>
 
+
 using namespace std;
+
 class Server;
+class Command;
 
-class Client {
-    private:
-        int _socketFd;
-        string _nickname;
-        string _username;
-        string _realname;
-        string _hostname;
-        bool _isAuthenticated;
-        bool _hasPassword;
-        bool _hasNickname;
-        bool _hasUsername;
-        string _readBuffer;
-        string _writeBuffer;
+class Client
+{
+private:
+    int _socketFd;
+    string _password;
+    string _nickname;
+    string _username;
+    string hostname; // IP address of the client
+    string _realname;
 
+    std::string _readBuffer;   // data received from the client
+    std::string _outputBuffer; //
+    
+    Server *server;
+
+    bool _isAuthenticated;
+    bool _isPassSet;
+    bool _isNickSet;
+    bool _isUserSet;
+    bool _isRegistered;
+    
+public:
+    Client(int fd, Server *srv = NULL) : _socketFd(fd),
+                                         _password(""),
+                                         _nickname(""), // empty until client sets NICK
+                                         _username(""), // empty until client sets USER
+                                         hostname(""),
+                                         _realname(""),
+                                         server(srv),
+                                         _isAuthenticated(false),
+                                        _isPassSet(false),
+                                        _isNickSet(false),
+                                        _isUserSet(false),
+                                        _isRegistered(false)
+    {
+        hostname = "some.host.example.com";
+    }
+
+    void setServer(Server *srv) { server = srv; }
+
+    // socket fd
+    int getSocketFd() const { return _socketFd; }
+    void setSocketFd(int fd) { _socketFd = fd; }
+
+    // password
+    const string &getPassword() const { return _password; }
+    void setPassword(const string &pw) { _password = pw; }
+
+    // nickname
+    const string &getNickname() const { return _nickname; }
+    void setNickname(const string &nick) { _nickname = nick; }
+
+    // username
+    const string &getUsername() const { return _username; }
+    void setUsername(const string &user) { _username = user; }
+
+    // hostname / ip
+    const string &getHostname() const { return hostname; }
+    void setHostname(const string &host) { hostname = host; }
+
+    // recieved command buffer
+    const string &getReadBuffer() const { return _readBuffer; }
+    void setReadBuffer(const string &buffer) { _readBuffer = buffer; }
+
+    const string &getRealname() const { return _realname; }
+    void setRealname(const string &real) { _realname = real; }
+    // exceptions
+    class clientError : public std::runtime_error
+    {
     public:
-        // Constructor
-        Client(int fd);
-        
-        // Destructor
-        ~Client();
-        
-        // Getters
-        int getSocketFd() const { return _socketFd; }
-        const string& getNickname() const { return _nickname; }
-        const string& getUsername() const { return _username; }
-        const string& getRealname() const { return _realname; }
-        const string& getHostname() const { return _hostname; }
-        bool isAuthenticated() const { return _isAuthenticated; }
-        bool hasPassword() const { return _hasPassword; }
-        bool hasNickname() const { return _hasNickname; }
-        bool hasUsername() const { return _hasUsername; }
-        bool isRegistered() const { return _hasPassword && _hasNickname && _hasUsername; }
-        const string& getReadBuffer() const { return _readBuffer; }
-        const string& getWriteBuffer() const { return _writeBuffer; }
-        
-        // Setters
-        void setNickname(const string& nickname);
-        void setUsername(const string& username);
-        void setRealname(const string& realname);
-        void setHostname(const string& hostname);
-        void setAuthenticated(bool auth) { _isAuthenticated = auth; }
-        void setHasPassword(bool has) { _hasPassword = has; }
-        void setHasNickname(bool has) { _hasNickname = has; }
-        void setHasUsername(bool has) { _hasUsername = has; }
-        
-        // Buffer management
-        void appendToReadBuffer(const string& data);
-        void appendToWriteBuffer(const string& data);
-        void clearReadBuffer() { _readBuffer.clear(); }
-        void clearWriteBuffer() { _writeBuffer.clear(); }
-        string extractMessage(); // Extract complete message from buffer
-        
-        // Utility
-        string getPrefix() const; // Returns :nickname!username@hostname
-        void sendMessage(const string& message); // Add message to write buffer
+        clientError(const std::string &msg) : std::runtime_error(msg) {}
+    };
+
+    void processInputBuffer(string chunk);
+    void parseCommand(string &cmd);
+    void executeCommand(const Command &cmd);
+    
+    void passCommand(const Command &cmd);
+    void nickCommand(const Command &cmd);
+    void userCommand(const Command &cmd);
+
+    // petit utils
+    bool checkUniqueNickname(string nickname);
+    void tryToRegister();
 };

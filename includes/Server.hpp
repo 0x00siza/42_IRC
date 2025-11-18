@@ -17,70 +17,82 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <csignal>
+#include "Client.hpp"
+#include "Command.hpp"
+#include <sstream>
+#include <iomanip>
+
+#define BUFFER_SIZE 1024
 
 using namespace std;
-class Client;
-class Channel;
 
-class Server {
-    private:
-        int _port;
-        string _serverPassword;
-        int _listeningSocketFd;
-        vector<struct pollfd> _pollFds;
-        map<int, Client*> _clients;
-        map<string, Channel*> _channels; // Channel name -> Channel
+class Server
+{
+private:
+    int _port;
+    string _serverPassword;
+    int _listeningSocketFd;         // server listening socket
+    const string _name;
+    vector<struct pollfd> _pollFds; // vector of file descriptors
+    map<int, Client *> _clients;    // vector of clients
+    static bool signal;
+    map<int, Client *> _registeredClients;
 
+public:
+    Server(int port, string &password) : _port(port), _serverPassword(password),
+                                         _listeningSocketFd(-1),_name("IRC SERVER")
+    {
+    }
+    // cpy construcor ...
+
+    // getters / setters
+    int getPort() const { return _port; }
+    void setPort(int p) { _port = p; }
+
+    std::map<int, Client*>& getClients() { return _clients; }
+    std::map<int, Client*>& getRegisteredClients() { return _registeredClients; }
+     
+    const string &getPassword() const { return _serverPassword; }
+    void setPassword(const string &pw) { _serverPassword = pw; }
+
+    int getListeningSocketFd() const { return _listeningSocketFd; }
+    void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
+
+    std::vector<struct pollfd> &getPollFds() { return _pollFds; }
+
+    // exceptions
+    class ServerError : public std::runtime_error
+    {
     public:
-        Server(int port, string& password):_port(port), _serverPassword(password),
-        _listeningSocketFd(-1){
-
-        }
-        // cpy construcor ...
-
-        // getters / setters
-        int getPort() const { return _port; }
-        void setPort(int p) { _port = p; }
-        
-        const string& getPassword() const { return _serverPassword; }
-        void setPassword(const string& pw) { _serverPassword = pw; }
-
-        int getListeningSocketFd() const { return _listeningSocketFd; }
-        void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
-
-        const map<int, Client*>& getClients() const { return _clients; }
-        const map<string, Channel*>& getChannels() const { return _channels; }
-
-        // Client management
-        void addClient(int fd, Client* client);
-        void removeClient(int fd);
-        Client* getClientByFd(int fd);
-        Client* getClientByNick(const string& nickname);
-        bool authClient(string &clientPassword);
-        
-        // Channel management
-        Channel* getChannel(const string& name);
-        Channel* createChannel(const string& name);
-        void removeChannel(const string& name);
-        bool channelExists(const string& name) const;
-        
-        void serverStart();
-
-        // exceptions 
-        class ServerError : public std::runtime_error {
-        public:
-            ServerError(const std::string& msg) : std::runtime_error(msg) {}
-        };
-
-        class SocketError : public ServerError {
-        public:
-            SocketError(const std::string& msg) : ServerError("Socket error: " + msg) {}
-        };
-
-        class NetworkError : public ServerError {
-        public:
-            NetworkError(const std::string& msg)
-                : ServerError("Network error: " + msg + " (" + std::strerror(errno) + ")") {}
-        };
-
+        ServerError(const std::string &msg) : std::runtime_error(msg) {}
     };
+
+    class SocketError : public ServerError
+    {
+    public:
+        SocketError(const std::string &msg) : ServerError("Socket error: " + msg) {}
+    };
+
+    class NetworkError : public ServerError
+    {
+    public:
+        NetworkError(const std::string &msg)
+            : ServerError("Network error: " + msg + " (" + std::strerror(errno) + ")") {}
+    };
+
+    // functions
+    void serverStart();
+    void serverRun();
+    void addNewClient();
+    bool authClient(string &clientPassword);
+    void closeFds();
+    void receiveData(int fd);
+    void removeClient(int fd);
+    static void SignalHandler(int signum);
+
+    // handle communication => Server -> Client
+    void sendReplay(Client* client, int errorNum, string message);
+    void send_raw_data(Client* client, const std::string& data);
+
+};
