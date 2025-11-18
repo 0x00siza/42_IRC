@@ -1,5 +1,6 @@
 
 #include "../includes/Server.hpp"
+#include "../includes/Channel.hpp"
 
 bool Server::signal = false;
 
@@ -311,3 +312,41 @@ void Server::sendReplay(Client* client, int errorNum, string message){
 //     send_reply(372, nick, ":- Welcome to my awesome IRC server!"); // RPL_MOTD (can be multiple lines)
 //     send_reply(376, nick, ":End of MOTD command"); // RPL_ENDOFMOTD
 // }
+
+// ==================== CHANNEL MANAGEMENT ====================
+
+Channel* Server::getChannel(const string& name) {
+    map<string, Channel*>::iterator it = _channels.find(name);
+    if (it != _channels.end()) {
+        return it->second;
+    }
+    return NULL;
+}
+
+Channel* Server::createChannel(const string& name) {
+    Channel* channel = getChannel(name);
+    if (channel) {
+        return channel; // Already exists
+    }
+    
+    channel = new Channel(name);
+    _channels[name] = channel;
+    return channel;
+}
+
+void Server::removeChannel(const string& name) {
+    map<string, Channel*>::iterator it = _channels.find(name);
+    if (it != _channels.end()) {
+        delete it->second;
+        _channels.erase(it);
+    }
+}
+
+Client* Server::getClientByNick(const string& nickname) {
+    for (map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
+        if (it->second->getNickname() == nickname) {
+            return it->second;
+        }
+    }
+    return NULL;
+}

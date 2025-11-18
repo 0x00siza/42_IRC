@@ -1,5 +1,6 @@
 #include "../includes/Channel.hpp"
 #include <algorithm>
+#include <sys/socket.h>
 
 // Constructor
 Channel::Channel(const string& name) : _name(name), _topic(""), _key(""), 
@@ -115,14 +116,7 @@ bool Channel::isInvited(const string& nickname) const {
     return _inviteList.find(nickname) != _inviteList.end();
 }
 
-// Broadcast message to all members except 'exclude'
-void Channel::broadcast(const string& message, Client* exclude) {
-    for (set<Client*>::iterator it = _members.begin(); it != _members.end(); ++it) {
-        if (*it != exclude) {
-            (*it)->sendMessage(message);
-        }
-    }
-}
+
 
 // Get list of members for NAMES reply
 string Channel::getMemberList() const {
@@ -138,6 +132,20 @@ string Channel::getMemberList() const {
         list += (*it)->getNickname();
     }
     return list;
+}
+
+// Broadcast message to all channel members
+void Channel::broadcast(const string& message, Client* exclude) {
+    for (set<Client*>::iterator it = _members.begin(); it != _members.end(); ++it) {
+        if (*it != exclude) {
+            // Send message to client's output buffer
+            string msg = message;
+            if (msg.find("\r\n") == string::npos) {
+                msg += "\r\n";
+            }
+            send((*it)->getSocketFd(), msg.c_str(), msg.length(), 0);
+        }
+    }
 }
 
 // Get mode string for MODE reply

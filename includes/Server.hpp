@@ -23,6 +23,9 @@
 #include <sstream>
 #include <iomanip>
 
+// Forward declaration
+class Channel;
+
 #define BUFFER_SIZE 1024
 
 using namespace std;
@@ -38,6 +41,7 @@ private:
     map<int, Client *> _clients;    // vector of clients
     static bool signal;
     map<int, Client *> _registeredClients;
+    map<string, Channel *> _channels; // IRC channels
 
 public:
     Server(int port, string &password) : _port(port), _serverPassword(password),
@@ -52,6 +56,7 @@ public:
 
     std::map<int, Client*>& getClients() { return _clients; }
     std::map<int, Client*>& getRegisteredClients() { return _registeredClients; }
+    std::map<string, Channel*>& getChannels() { return _channels; }
      
     const string &getPassword() const { return _serverPassword; }
     void setPassword(const string &pw) { _serverPassword = pw; }
@@ -60,6 +65,14 @@ public:
     void setListeningSocketFd(int fd) { _listeningSocketFd = fd; }
 
     std::vector<struct pollfd> &getPollFds() { return _pollFds; }
+
+    // Channel management
+    Channel* getChannel(const string& name);
+    Channel* createChannel(const string& name);
+    void removeChannel(const string& name);
+    
+    // Client lookup
+    Client* getClientByNick(const string& nickname);
 
     // exceptions
     class ServerError : public std::runtime_error

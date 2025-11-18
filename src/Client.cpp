@@ -130,6 +130,18 @@ void Client::executeCommand(const Command& cmd){
         cout << "JOIN command hehe" << endl;
     
     }
+    else if (cmd.command == "KICK"){
+        kickCommand(cmd);
+    }
+    else if (cmd.command == "INVITE"){
+        inviteCommand(cmd);
+    }
+    else if (cmd.command == "TOPIC"){
+        topicCommand(cmd);
+    }
+    else if (cmd.command == "MODE"){
+        modeCommand(cmd);
+    }
     else if (cmd.command == "QUIT"){
         // ...
     }

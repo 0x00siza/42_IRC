@@ -90,8 +90,22 @@ public:
     void passCommand(const Command &cmd);
     void nickCommand(const Command &cmd);
     void userCommand(const Command &cmd);
+    
+    // Operator commands (oopsilon part)
+    void kickCommand(const Command &cmd);
+    void inviteCommand(const Command &cmd);
+    void topicCommand(const Command &cmd);
+    void modeCommand(const Command &cmd);
 
     // petit utils
     bool checkUniqueNickname(string nickname);
     void tryToRegister();
+    
+    // Helper for IRC messages
+    string getPrefix() const;
+    bool isRegistered() const { return _isRegistered; }
+    void sendMessage(const string& message);
+    void appendToOutputBuffer(const string& data) { _outputBuffer += data; }
+    const string& getOutputBuffer() const { return _outputBuffer; }
+    void clearOutputBuffer() { _outputBuffer.clear(); }
 };
