@@ -220,7 +220,6 @@ void Server::receiveData(int fd)
         cout << "Client disconnected on fd= " << fd << endl;
         // Notify other users in those channels of their departure.
         removeClient(fd);
-        close(fd);
     }
     else if (bytesreceived < 0)
     {
@@ -228,13 +227,13 @@ void Server::receiveData(int fd)
         {
             cout << "Client disconnected on fd= " << fd << endl;
             removeClient(fd);
-            close(fd);
             return;
         }
         return; // => no data to read
     }
     else
     {
+
         // parse command
         std::string chunk(buffer, bytesreceived);
         if (chunk.empty())
@@ -252,20 +251,30 @@ void Server::removeClient(int fd)
 
     // remove client from clients map
     map<int, Client *>::iterator it = _clients.find(fd);
-    if (it != _clients.end())
+   if (it != _clients.end())
     {
-        delete it->second;
+        Client *client = it->second;
         _clients.erase(it);
-    }
 
-    // remove from pollfds
-    for (size_t i = 0; i < _pollFds.size(); i++)
-    {
-        if (_pollFds[i].fd == fd)
+        // also remove from registered clients if present
+        map<int, Client *>::iterator rit = _registeredClients.find(fd);
+        if (rit != _registeredClients.end())
+            _registeredClients.erase(rit);
+
+        // remove from pollfds
+        for (size_t i = 0; i < _pollFds.size(); i++)
         {
-            _pollFds.erase(_pollFds.begin() + i);
-            break;
+            if (_pollFds[i].fd == fd)
+            {
+                _pollFds.erase(_pollFds.begin() + i);
+                break;
+            }
         }
+
+        // close socket and free client
+        close(fd);
+        delete client;
+        return;
     }
 }
 
@@ -284,7 +293,6 @@ void Server::sendReplay(Client *client, int num, string message)
 {
     std::ostringstream oss;
 
-    //<<":IRC_SERVER ";
     oss << getServerName() << " ";
     oss << std::setw(3) << std::setfill('0') << num << " ";
     oss << (client->getNickname().empty() ? "*" : client->getNickname());

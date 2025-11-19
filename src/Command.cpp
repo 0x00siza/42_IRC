@@ -468,3 +468,42 @@ void Client::modeCommand(const Command &cmd)
         channel->broadcast(modeMsg, NULL);
     }
 }
+
+void Client::quitCommand(const Command &cmd)
+{
+
+    int fd = getSocketFd();
+
+    std::string reason = "Client Quit";
+    if (!cmd.params.empty())
+        reason = cmd.params[0];
+
+    std::string quitMsg = ":" + getNickname() + "!" + getUsername() + "@" + getHostname() + " QUIT :" + reason;
+
+    cout << quitMsg << endl;
+    // Copy channel names to avoid modifying the map while iterating
+    std::vector<std::string> channelNames;
+    for (std::map<std::string, Channel *>::iterator it = server->getChannels().begin(); it != server->getChannels().end(); ++it)
+    {
+        channelNames.push_back(it->first);
+    }
+
+    // Broadcast QUIT to channels where this client is a member and remove them
+    for (size_t i = 0; i < channelNames.size(); ++i)
+    {
+        Channel *ch = server->getChannel(channelNames[i]);
+        if (!ch)
+            continue;
+        if (ch->hasMember(this))
+        {
+            ch->broadcast(quitMsg, this);
+            ch->removeMember(this);
+            if (ch->getMemberCount() == 0)
+            {
+                server->removeChannel(channelNames[i]);
+            }
+        }
+    }
+    // Remove client from server and close socket
+    server->removeClient(fd);
+}

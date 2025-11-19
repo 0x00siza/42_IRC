@@ -96,6 +96,7 @@ public:
     void inviteCommand(const Command &cmd);
     void topicCommand(const Command &cmd);
     void modeCommand(const Command &cmd);
+    void quitCommand(const Command &cmd);
 
     // petit utils
     bool checkUniqueNickname(string nickname);

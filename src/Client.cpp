@@ -120,6 +120,12 @@ void Client::parseCommand(string &cmd){
 
 void Client::executeCommand(const Command& cmd){
     
+    // QUIT is allowed even before registration
+    if (cmd.command == "QUIT")
+    {
+        quitCommand(cmd);
+        return;
+    }
     // user must use PASS with correct password to proceed with registration
     
     // check registration first
@@ -158,7 +164,8 @@ void Client::executeCommand(const Command& cmd){
         modeCommand(cmd);
     }
     else if (cmd.command == "QUIT"){
-        // ...
+        quitCommand(cmd);
+        return;
     }
     // sends replies (send/queue response strings terminated with "\r\n").
 
