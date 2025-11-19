@@ -36,16 +36,16 @@ private:
     int _port;
     string _serverPassword;
     int _listeningSocketFd;         // server listening socket
-    const string _name;
+    const string _serverName;
     vector<struct pollfd> _pollFds; // vector of file descriptors
-    map<int, Client *> _clients;    // vector of clients
+    map<int, Client *> _clients;    // map of clients
     static bool signal;
     map<int, Client *> _registeredClients;
     map<string, Channel *> _channels; // IRC channels
 
 public:
     Server(int port, string &password) : _port(port), _serverPassword(password),
-                                         _listeningSocketFd(-1),_name("IRC SERVER")
+                                         _listeningSocketFd(-1),_serverName("IRC SERVER")
     {
     }
     // cpy construcor ...
@@ -53,7 +53,7 @@ public:
     // getters / setters
     int getPort() const { return _port; }
     void setPort(int p) { _port = p; }
-
+    const string getServerName(){ return _serverName; }
     std::map<int, Client*>& getClients() { return _clients; }
     std::map<int, Client*>& getRegisteredClients() { return _registeredClients; }
     std::map<string, Channel*>& getChannels() { return _channels; }

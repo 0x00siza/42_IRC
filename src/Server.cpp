@@ -273,78 +273,75 @@ void Server::removeClient(int fd)
     }
 }
 
-void Server::send_raw_data(Client* client, const std::string& data) {
+void Server::send_raw_data(Client *client, const std::string &data)
+{
     std::string full_data = data + "\r\n";
 
-    if (send(client->getSocketFd(), full_data.c_str(), full_data.length(), 0) == -1) {
+    if (send(client->getSocketFd(), full_data.c_str(), full_data.length(), 0) == -1)
+    {
         std::cerr << "Error sending data to client " << client->getSocketFd() << ": " << strerror(errno) << std::endl;
         close(client->getSocketFd());
     }
 }
 
-void Server::sendReplay(Client* client, int errorNum, string message){
+void Server::sendReplay(Client *client, int num, string message)
+{
     std::ostringstream oss;
 
-    oss << ":" << this->_name << " ";
-    oss << std::setw(3) << std::setfill('0') << errorNum << " "; // Numeric code (e.g., 001, 433)
-    oss << client->getNickname().empty() ? "*" : client->getNickname(); // Recipient: client's nick, or '*' if not registered
-    
-    if (!message.empty()) {
+    //<<":IRC_SERVER ";
+    oss << getServerName() << " ";
+    oss << std::setw(3) << std::setfill('0') << num << " ";
+    oss << (client->getNickname().empty() ? "*" : client->getNickname());
+
+    if (!message.empty())
+    {
         oss << " " << message;
     }
 
     send_raw_data(client, oss.str());
 }
 
-
-// void Client::send_welcome_messages() {
-//     const std::string& nick = getNickname();
-//     const std::string& user = getUsername();
-//     const std::string& host = getHostname();
-
-//     send_reply(1, nick, ":Welcome to the Internet Relay Network " + nick + "!" + user + "@" + host); // RPL_WELCOME (001)
-//     send_reply(2, nick, ":Your host is " + server->getName() + ", running version " + server->getVersion()); // RPL_YOURHOST (002)
-//     send_reply(3, nick, ":This server was created " + server->getCreationDate()); // RPL_CREATED (003)
-//     send_reply(4, nick, server->getName(), server->getVersion() + " " + server->getAvailableUserModes() + " " + server->getAvailableChannelModes()); // RPL_MYINFO (004)
-    
-//     // Optional: Message of the Day (MOTD)
-//     send_reply(375, nick, ":- " + server->getName() + " Message of the Day -"); // RPL_MOTDSTART
-//     send_reply(372, nick, ":- Welcome to my awesome IRC server!"); // RPL_MOTD (can be multiple lines)
-//     send_reply(376, nick, ":End of MOTD command"); // RPL_ENDOFMOTD
-// }
-
 // ==================== CHANNEL MANAGEMENT ====================
 
-Channel* Server::getChannel(const string& name) {
-    map<string, Channel*>::iterator it = _channels.find(name);
-    if (it != _channels.end()) {
+Channel *Server::getChannel(const string &name)
+{
+    map<string, Channel *>::iterator it = _channels.find(name);
+    if (it != _channels.end())
+    {
         return it->second;
     }
     return NULL;
 }
 
-Channel* Server::createChannel(const string& name) {
-    Channel* channel = getChannel(name);
-    if (channel) {
+Channel *Server::createChannel(const string &name)
+{
+    Channel *channel = getChannel(name);
+    if (channel)
+    {
         return channel; // Already exists
     }
-    
+
     channel = new Channel(name);
     _channels[name] = channel;
     return channel;
 }
 
-void Server::removeChannel(const string& name) {
-    map<string, Channel*>::iterator it = _channels.find(name);
-    if (it != _channels.end()) {
+void Server::removeChannel(const string &name)
+{
+    map<string, Channel *>::iterator it = _channels.find(name);
+    if (it != _channels.end())
+    {
         delete it->second;
         _channels.erase(it);
     }
 }
 
-Client* Server::getClientByNick(const string& nickname) {
-    for (map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
-        if (it->second->getNickname() == nickname) {
+Client *Server::getClientByNick(const string &nickname)
+{
+    for (map<int, Client *>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+    {
+        if (it->second->getNickname() == nickname)
+        {
             return it->second;
         }
     }

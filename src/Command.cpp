@@ -11,7 +11,7 @@ void Client::passCommand(const Command &cmd)
         server->sendReplay(this, 461, "Not enough parameters");
         return;
     }
-    
+
     if (_isRegistered == true)
     {
         server->sendReplay(this, 462, ":You may not reregister");
@@ -19,8 +19,9 @@ void Client::passCommand(const Command &cmd)
     }
 
     this->setPassword(cmd.params[0]);
-    
-    if (this->getPassword() != server->getPassword()){
+
+    if (this->getPassword() != server->getPassword())
+    {
         _isAuthenticated = false;
         server->sendReplay(this, 464, ":Password Incorrect"); // ??
         return;
@@ -38,7 +39,8 @@ void Client::nickCommand(const Command &cmd)
         server->sendReplay(this, 431, ":No nickname given");
         return;
     }
-    else if (cmd.params[0].empty() || cmd.params[0][0] == '#' || cmd.params[0][0] == ':' || cmd.params[0].find(' ') != std::string::npos){
+    else if (cmd.params[0].empty() || cmd.params[0][0] == '#' || cmd.params[0][0] == ':' || cmd.params[0].find(' ') != std::string::npos)
+    {
         server->sendReplay(this, 432, "Erroneous nickname");
         return;
     }
@@ -50,19 +52,18 @@ void Client::nickCommand(const Command &cmd)
 
     string newNick = cmd.params[0];
     string oldNick = getNickname();
-    
+
     this->setNickname(cmd.params[0]);
     _isNickSet = true;
 
     std::cout << "Client " << getSocketFd() << " changed nick to: " << getNickname() << std::endl;
-    if (_isRegistered && !oldNick.empty()){
-        // broadcast change in channels / clients 
+    if (_isRegistered && !oldNick.empty())
+    {
+        // broadcast change in channels / clients
         // Example: ":oldNick!user@host NICK :newNick" ...
-        
     }
 
     tryToRegister();
-    
 }
 
 bool Client::checkUniqueNickname(string nickname)
@@ -77,13 +78,16 @@ bool Client::checkUniqueNickname(string nickname)
     return true;
 }
 
-void Client::userCommand(const Command& cmd){
+void Client::userCommand(const Command &cmd)
+{
 
-     if (cmd.params.size() < 4) { // Needs username, mode, unused, and realname (trailing)
+    if (cmd.params.size() < 4)
+    { // Needs username, mode, unused, and realname (trailing)
         server->sendReplay(this, 461, "Not enough parameters");
         return;
     }
-    if (_isUserSet) {
+    if (_isUserSet)
+    {
         server->sendReplay(this, 462, ":You may not reregister");
         return;
     }
@@ -100,30 +104,40 @@ void Client::userCommand(const Command& cmd){
     _isUserSet = true; // Mark USER as set
 
     std::cout << "Client " << getSocketFd() << " set USER: " << getUsername() << " Real Name: " << realname << std::endl;
-    
+
     tryToRegister();
 }
 
-void Client::tryToRegister(){
-    if (!_isNickSet || !_isUserSet || !_isAuthenticated) {
+void Client::sendWelcomeMessages()
+{
+    server->sendReplay(this, 1, ":Welcome to the Internet Relay Network " + getNickname() + "!" + getUsername() + "@" + getHostname());
+    server->sendReplay(this, 2, ":Your host is IRC_SERVER, running version 1.0");
+    server->sendReplay(this, 3, ":This server was created today");
+    server->sendReplay(this, 4, "IRC_SERVER 1.0 o itkol");
+}
+
+void Client::tryToRegister()
+{
+    if (!_isNickSet || !_isUserSet || !_isAuthenticated)
+    {
         return; // Not ready to register yet
     }
 
-    if (_isRegistered) { // already registered get outta hereeee n TwT
+    if (_isRegistered)
+    { // already registered get outta hereeee n TwT
         return;
     }
 
     _isRegistered = true;
 
-    // add to registered clients 
+    // add to registered clients
     std::pair<std::map<int, Client *>::iterator, bool> res = server->getRegisteredClients().insert(std::make_pair(this->_socketFd, this));
-    if (!res.second){
+    if (!res.second)
+    {
         server->sendReplay(this, 462, ":You may not reregister");
     }
 
-    cout << "Client " << getNickname() << " is fully registered!" << endl;
-
-    // send weclome message :D
+    sendWelcomeMessages();
 }
 
 // ==================== OPERATOR COMMANDS ====================
@@ -142,7 +156,7 @@ void Client::kickCommand(const Command &cmd)
     string reason = cmd.params.size() >= 3 ? cmd.params[2] : this->getNickname();
 
     // Get channel
-    Channel* channel = server->getChannel(channelName);
+    Channel *channel = server->getChannel(channelName);
     if (!channel)
     {
         server->sendReplay(this, 403, channelName + " :No such channel");
@@ -164,7 +178,7 @@ void Client::kickCommand(const Command &cmd)
     }
 
     // Get target client
-    Client* target = channel->getMemberByNick(targetNick);
+    Client *target = channel->getMemberByNick(targetNick);
     if (!target)
     {
         server->sendReplay(this, 441, targetNick + " " + channelName + " :They aren't on that channel");
@@ -172,7 +186,7 @@ void Client::kickCommand(const Command &cmd)
     }
 
     // Broadcast KICK message to all channel members
-    string kickMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost KICK " + 
+    string kickMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost KICK " +
                      channelName + " " + targetNick + " :" + reason + "\r\n";
     channel->broadcast(kickMsg, NULL);
 
@@ -193,7 +207,7 @@ void Client::inviteCommand(const Command &cmd)
     string channelName = cmd.params[1];
 
     // Get target client
-    Client* target = server->getClientByNick(targetNick);
+    Client *target = server->getClientByNick(targetNick);
     if (!target)
     {
         server->sendReplay(this, 401, targetNick + " :No such nick/channel");
@@ -201,7 +215,7 @@ void Client::inviteCommand(const Command &cmd)
     }
 
     // Get channel
-    Channel* channel = server->getChannel(channelName);
+    Channel *channel = server->getChannel(channelName);
     if (!channel)
     {
         server->sendReplay(this, 403, channelName + " :No such channel");
@@ -236,7 +250,7 @@ void Client::inviteCommand(const Command &cmd)
     server->sendReplay(this, 341, targetNick + " " + channelName);
 
     // Send INVITE message to target
-    string inviteMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost INVITE " + 
+    string inviteMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost INVITE " +
                        targetNick + " :" + channelName;
     server->send_raw_data(target, inviteMsg);
 }
@@ -253,7 +267,7 @@ void Client::topicCommand(const Command &cmd)
     string channelName = cmd.params[0];
 
     // Get channel
-    Channel* channel = server->getChannel(channelName);
+    Channel *channel = server->getChannel(channelName);
     if (!channel)
     {
         server->sendReplay(this, 403, channelName + " :No such channel");
@@ -295,7 +309,7 @@ void Client::topicCommand(const Command &cmd)
     channel->setTopic(newTopic);
 
     // Broadcast topic change to all channel members
-    string topicMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost TOPIC " + 
+    string topicMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost TOPIC " +
                       channelName + " :" + newTopic + "\r\n";
     channel->broadcast(topicMsg, NULL);
 }
@@ -312,7 +326,7 @@ void Client::modeCommand(const Command &cmd)
     string channelName = cmd.params[0];
 
     // Get channel
-    Channel* channel = server->getChannel(channelName);
+    Channel *channel = server->getChannel(channelName);
     if (!channel)
     {
         server->sendReplay(this, 403, channelName + " :No such channel");
@@ -403,7 +417,7 @@ void Client::modeCommand(const Command &cmd)
         {
             if (argIndex < modeArgs.size())
             {
-                Client* target = channel->getMemberByNick(modeArgs[argIndex]);
+                Client *target = channel->getMemberByNick(modeArgs[argIndex]);
                 if (target)
                 {
                     if (adding)
@@ -449,7 +463,7 @@ void Client::modeCommand(const Command &cmd)
     if (!appliedModes.empty())
     {
         string modePrefix = adding ? "+" : "-";
-        string modeMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost MODE " + 
+        string modeMsg = ":" + this->getNickname() + "!" + this->getUsername() + "@localhost MODE " +
                          channelName + " " + modePrefix + appliedModes + appliedArgs + "\r\n";
         channel->broadcast(modeMsg, NULL);
     }

@@ -104,7 +104,7 @@ public:
     // Helper for IRC messages
     string getPrefix() const;
     bool isRegistered() const { return _isRegistered; }
-    void sendMessage(const string& message);
+    void sendWelcomeMessages();
     void appendToOutputBuffer(const string& data) { _outputBuffer += data; }
     const string& getOutputBuffer() const { return _outputBuffer; }
     void clearOutputBuffer() { _outputBuffer.clear(); }

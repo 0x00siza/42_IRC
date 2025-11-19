@@ -13,20 +13,15 @@ int main(int ac, char**av)
     errno = 0;
     long x = strtol(s, &end, 10);
     
-    if (end == s){
+   
+    if (end == s) {
         cerr << "Port is not a number: " << s << endl;
-        return EXIT_FAILURE;
-    }
-    
-     if (end == s) {
-        std::cerr << "Port is not a number: " << s << std::endl;
         return EXIT_FAILURE;
     }
     if (*end != '\0') {
         std::cerr << "Trailing non-numeric characters after number: " << end << std::endl;
         return EXIT_FAILURE;
     }
-
     // check overflow or underflow + port range
     if (errno == ERANGE || x < 0 || x > 65535) {
         std::cerr << "Port out of range: " << s << std::endl;
