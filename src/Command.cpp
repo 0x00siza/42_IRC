@@ -113,7 +113,7 @@ void Client::sendWelcomeMessages()
     server->sendReplay(this, 1, ":Welcome to the Internet Relay Network " + getNickname() + "!" + getUsername() + "@" + getHostname());
     server->sendReplay(this, 2, ":Your host is IRC_SERVER, running version 1.0");
     server->sendReplay(this, 3, ":This server was created today");
-    server->sendReplay(this, 4, "IRC_SERVER 1.0 o itkol");
+    server->sendReplay(this, 4, "IRC_SERVER 1.0");
 }
 
 void Client::tryToRegister()

@@ -5,24 +5,39 @@
 
 void Client::processInputBuffer(string chunk)
 {
-
     _readBuffer.append(chunk);
     string cmd;
 
     while (true)
     {
+        // Look for both \r\n and \n line endings
         size_t crlf = _readBuffer.find("\r\n");
+        size_t lf = _readBuffer.find("\n");
 
-       if (crlf == string::npos){
-            break;
-       }
+        size_t pos = string::npos;
+        size_t skip = 0;
+        
+        if (crlf != string::npos && (lf == string::npos || crlf <= lf)) {
+            // Found \r\n first (or only \r\n)
+            pos = crlf;
+            skip = 2;
+        } else if (lf != string::npos) {
+            // Found \n (either alone or \n before \r\n)
+            pos = lf;
+            skip = 1;
+        }
+        
+        if (pos == string::npos) {
+            break; // No complete command found
+        }
 
-       cmd = _readBuffer.substr(0, crlf);
-       _readBuffer.erase(0, crlf + 2);
+        cmd = _readBuffer.substr(0, pos);
+        _readBuffer.erase(0, pos + skip);
 
-       if (cmd.empty())
-            return;
-       parseCommand(cmd);
+        if (cmd.empty())
+            continue; // Skip empty lines
+            
+        parseCommand(cmd);
     }
 }
 

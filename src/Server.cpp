@@ -118,7 +118,6 @@ void Server::serverRun()
                     else // It's an already connected client socket
                         receiveData(_pollFds[i].fd);
                 }
-                // handle client disconnections
             }
         }
     }
@@ -219,7 +218,6 @@ void Server::receiveData(int fd)
     if (bytesreceived == 0)
     {
         cout << "Client disconnected on fd= " << fd << endl;
-        // Remove client from any channels they were in.
         // Notify other users in those channels of their departure.
         removeClient(fd);
         close(fd);
@@ -228,17 +226,15 @@ void Server::receiveData(int fd)
     {
         if (errno != EWOULDBLOCK && errno != EAGAIN)
         {
-            perror("recv() failed");
+            cout << "Client disconnected on fd= " << fd << endl;
             removeClient(fd);
+            close(fd);
             return;
         }
         return; // => no data to read
     }
     else
     {
-        // buffer[bytesreceived] = '\0';
-        // cout << "Client with fd= " << fd << " said ||" << buffer << "||" << endl;
-
         // parse command
         std::string chunk(buffer, bytesreceived);
         if (chunk.empty())
